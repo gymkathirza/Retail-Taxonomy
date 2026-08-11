@@ -2,14 +2,19 @@
 
 ## Assessment-Aligned Submission Plan + Enterprise Evolution (v2)
 
-**Source:** `FullStackWebDeveloper-CodingTest.pdf`  
-**Compare against:** `Retail-Taxonomy-AI-Modernization-Blueprint.md` (original enterprise blueprint; do not edit that file)  
-**Second critique:** PARTIAL → this revision locks remaining grader-safety gaps (auth/health timing, one monitoring stack, stranger-run contract, seed wrap rules, JSON shapes, TDD cadence).
-
 **Reading order:** Part A is the binding coding-test plan. Part B is optional post-assessment evolution — keep it out of the public repo README (one-paragraph pointer at most).
 
 ---
 
+# PLAN
+
+<img width="1010" height="367" alt="image" src="https://github.com/user-attachments/assets/5710102e-0144-4082-85fb-88fc44faf300" />
+
+  # FLOW:
+
+<img width="1010" height="263" alt="image" src="https://github.com/user-attachments/assets/d6a27601-c7f3-47be-b409-45d38e286ab6" />
+
+         
 # Part A — Assessment submission (Exercises 1–3)
 
 This part satisfies the PDF literally. Enterprise practice that would conflict with a grader (OIDC-only, soft-delete, protected `main`, AI workflow) lives in Part B only.
