@@ -1,0 +1,40 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual envs
+.venv/
+venv/
+
+# Node
+node_modules/
+apps/web/dist/
+apps/web/playwright-report/
+apps/web/test-results/
+apps/web/blob-report/
+playwright-report/
+test-results/
+blob-report/
+
+# Env / local
+.env
+*.log
+.DS_Store
+*.bundle
+.bundle*
+*.pem
+*.key
+id_rsa*
+credentials.json
+
+# IDE
+.idea/
+.vscode/
+
+# Docker volumes (if ever bind-mounted locally)
+pgdata/
