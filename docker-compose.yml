@@ -15,5 +15,32 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    image: retail-taxonomy-api:local
+    environment:
+      # Always use Compose DNS name inside the network (ignore host .env DATABASE_URL).
+      DATABASE_URL: postgresql+psycopg://taxonomy:taxonomy@postgres:5432/taxonomy
+      TAXONOMY_SEED_CSV: /data/seed/taxonomy.csv
+      DEMO_USER: ${DEMO_USER:-admin}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-password}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./apps/api:/app
+      - ./scripts:/app/scripts
+      - ./data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
 volumes:
   pgdata:
