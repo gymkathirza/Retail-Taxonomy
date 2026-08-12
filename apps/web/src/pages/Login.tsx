@@ -29,36 +29,43 @@ export default function Login({ onLoggedIn }: Props) {
   }
 
   return (
-    <main style={{ fontFamily: "system-ui", margin: "2rem auto", maxWidth: 420 }}>
-      <h1>Retail Taxonomy</h1>
-      <p>Sign in with demo credentials (assessment only).</p>
-      <form onSubmit={onSubmit}>
-        <label>
-          Username{" "}
-          <input
-            name="username"
-            autoComplete="username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
-        </label>
-        <br />
-        <label>
-          Password{" "}
-          <input
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </label>
-        <br />
-        {error ? <p role="alert">{error}</p> : null}
-        <button type="submit" style={{ marginTop: "0.75rem" }}>
-          Sign in
-        </button>
-      </form>
-    </main>
+    <div className="login-wrap">
+      <div className="login-card">
+        <div className="login-head">
+          <div className="brand-logo">RT</div>
+          <h1>Retail Taxonomy Console</h1>
+          <p>Sign in with demo credentials (assessment only).</p>
+        </div>
+        <form className="login-body" onSubmit={onSubmit}>
+          <label className="field">
+            <span>Username</span>
+            <input
+              name="username"
+              autoComplete="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Password</span>
+            <input
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </label>
+          {error ? (
+            <p className="login-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <button type="submit" className="btn btn-primary">
+            Sign in
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }

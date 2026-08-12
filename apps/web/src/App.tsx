@@ -189,19 +189,23 @@ function TaxonomyApp({ onLogout }: { onLogout: () => void }) {
     selectedId?: string,
   ) {
     return (
-      <section>
-        <h2>{title}</h2>
-        {items.length === 0 ? <p>Empty</p> : null}
+      <section className="column">
+        <h2>
+          {title}
+          <span className="count">{items.length}</span>
+        </h2>
+        {items.length === 0 ? <div className="empty">Empty</div> : null}
         <ul>
           {items.map((item) => (
             <li key={item.id}>
               <button
                 type="button"
+                className={item.is_active ? "" : "inactive"}
                 aria-pressed={selectedId === item.id}
                 onClick={() => onSelect(item)}
               >
-                {item.name}
-                {!item.is_active ? " (inactive)" : ""}
+                <span className="node-name">{item.name}</span>
+                {!item.is_active ? <span className="badge">retired</span> : null}
               </button>
             </li>
           ))}
@@ -211,22 +215,37 @@ function TaxonomyApp({ onLogout }: { onLogout: () => void }) {
   }
 
   return (
-    <main style={{ fontFamily: "system-ui", margin: "1.5rem" }}>
-      <h1>Retail Taxonomy</h1>
-      <button type="button" onClick={onLogout}>
-        Sign out
-      </button>
-      <label>
-        <input
-          type="checkbox"
-          checked={includeInactive}
-          onChange={(e) => setIncludeInactive(e.target.checked)}
-        />{" "}
-        Show inactive
-      </label>
-      {error ? <p role="alert">{error}</p> : null}
+    <div className="app">
+      <div className="topbar">
+        <div className="brand">
+          <div className="brand-logo">RT</div>
+          <div>
+            <h1>Retail Taxonomy Console</h1>
+            <p>Merchandise classification workspace</p>
+          </div>
+        </div>
+        <div className="topbar-actions">
+          <label className="toggle">
+            <input
+              type="checkbox"
+              checked={includeInactive}
+              onChange={(e) => setIncludeInactive(e.target.checked)}
+            />
+            Show inactive
+          </label>
+          <button type="button" className="btn btn-outline" onClick={onLogout}>
+            Sign out
+          </button>
+        </div>
+      </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem" }}>
+      {error ? (
+        <div className="error" role="alert">
+          {error}
+        </div>
+      ) : null}
+
+      <div className="columns">
         {renderList(
           "Zones",
           zones,
@@ -260,25 +279,35 @@ function TaxonomyApp({ onLogout }: { onLogout: () => void }) {
         {renderList("Subcategories", subcategories, setSelectedSub, selectedSub?.id)}
       </div>
 
-      <section style={{ marginTop: "1.5rem" }}>
+      <section className="detail">
         <h2>Detail</h2>
-        <p>
-          Selected: {selected ? `${selected.level} / ${selected.node.name}` : "none"}
+        <p className="selected-line">
+          Selected:{" "}
+          {selected ? (
+            <b>
+              {selected.level} / {selected.node.name}
+            </b>
+          ) : (
+            "none"
+          )}
         </p>
-        <label>
-          Name{" "}
-          <input value={name} onChange={(e) => setName(e.target.value)} />
-        </label>{" "}
-        <label>
-          Description{" "}
-          <input value={description} onChange={(e) => setDescription(e.target.value)} />
-        </label>
-        <div style={{ marginTop: "0.75rem", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          <button type="button" onClick={() => onCreate("zone")}>
+        <div className="fields">
+          <label className="field">
+            <span>Name</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} />
+          </label>
+          <label className="field">
+            <span>Description</span>
+            <input value={description} onChange={(e) => setDescription(e.target.value)} />
+          </label>
+        </div>
+        <div className="actions">
+          <button type="button" className="btn btn-primary" onClick={() => onCreate("zone")}>
             Create zone
           </button>
           <button
             type="button"
+            className="btn btn-primary"
             disabled={!selectedZone}
             onClick={() => onCreate("department")}
           >
@@ -286,6 +315,7 @@ function TaxonomyApp({ onLogout }: { onLogout: () => void }) {
           </button>
           <button
             type="button"
+            className="btn btn-primary"
             disabled={!selectedDept}
             onClick={() => onCreate("category")}
           >
@@ -293,19 +323,26 @@ function TaxonomyApp({ onLogout }: { onLogout: () => void }) {
           </button>
           <button
             type="button"
+            className="btn btn-primary"
             disabled={!selectedCat}
             onClick={() => onCreate("subcategory")}
           >
             Create subcategory
           </button>
-          <button type="button" disabled={!selected} onClick={onSave}>
+          <button type="button" className="btn btn-ghost" disabled={!selected} onClick={onSave}>
             Save
           </button>
-          <button type="button" disabled={!selected?.node.is_active} onClick={onRetire}>
+          <button
+            type="button"
+            className="btn btn-danger"
+            disabled={!selected?.node.is_active}
+            onClick={onRetire}
+          >
             Retire
           </button>
           <button
             type="button"
+            className="btn btn-restore"
             disabled={!selected || selected.node.is_active}
             onClick={onRestore}
           >
@@ -313,6 +350,6 @@ function TaxonomyApp({ onLogout }: { onLogout: () => void }) {
           </button>
         </div>
       </section>
-    </main>
+    </div>
   );
 }
