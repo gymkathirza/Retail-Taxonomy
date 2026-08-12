@@ -267,7 +267,14 @@ function TaxonomyApp({ onLogout }: { onLogout: () => void }) {
                 onClick={() => onSelect(item)}
               >
                 <span className="node-name">{item.name}</span>
-                {!item.is_active ? <span className="badge">retired</span> : null}
+                {!item.is_active ? (
+                  <>
+                    <span className="sr-only"> (inactive)</span>
+                    <span className="badge" aria-hidden="true">
+                      retired
+                    </span>
+                  </>
+                ) : null}
               </button>
             </li>
           ))}
