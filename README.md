@@ -1,6 +1,6 @@
 # Retail Taxonomy Operations Platform
 
-Public assessment package for the Full Stack coding test (React + TypeScript + FastAPI + PostgreSQL 16).
+Public assessment package for the Full Stack coding demo (React + TypeScript + FastAPI + PostgreSQL 16).
 
 Part A only: zones hierarchy, soft-delete CRUD, Compose stranger runbook, Basic Auth (RUN), health + Prometheus/Grafana.
 
