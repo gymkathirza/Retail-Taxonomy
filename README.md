@@ -31,6 +31,43 @@ make smoke
 
 **Demo login (after RUN auth):** username `admin`, password `password` (from `.env.example`).
 
+## Authentication — Basic + optional OAuth2/OIDC SSO
+
+`/api/v1/*` (and `/api/v1/health/details`) accept **either**:
+- **HTTP Basic Auth** — demo `admin` / `password` (always available), or
+- an **OAuth2/OIDC Bearer** access token — only when OIDC is configured.
+
+`/health`, `/health/ready`, and `/metrics` stay public. Missing/invalid credentials
+return `401` with `WWW-Authenticate: Basic, Bearer`.
+
+**Enabling OIDC (opt-in):** set the `OIDC_*` (API) and `VITE_OIDC_*` (SPA) values in `.env`
+(see `.env.example`). When unset, behavior is unchanged (Basic only) and the UI hides the
+"Sign in with SSO" button. Bearer tokens are verified against the provider's JWKS (issuer,
+audience, expiry, RS256, key rotation). Optional `OIDC_REQUIRED_SCOPE` gates writes
+(`POST/PUT/DELETE`) for OIDC principals; Basic principals stay fully authorized.
+
+**Local IdP (Keycloak) for development:**
+
+```bash
+docker compose --profile oidc up -d keycloak      # starts Keycloak on :8080 (admin/admin)
+# imports realm "retail": SPA client (PKCE), API audience, M2M client, taxonomy.read/write,
+# and demo SSO user sso.user / password.
+cp .env.example .env   # then uncomment the OIDC_* and VITE_OIDC_* lines
+docker compose up -d --build api web              # pick up the OIDC env
+# open http://localhost:5173 → "Sign in with SSO" → Keycloak (sso.user / password)
+```
+
+Machine-to-machine (Client Credentials) example:
+
+```bash
+TOKEN=$(curl -s -d grant_type=client_credentials -d client_id=retail-taxonomy-m2m \
+  -d client_secret=m2m-dev-secret \
+  http://localhost:8080/realms/retail/protocol/openid-connect/token | jq -r .access_token)
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/v1/zones
+```
+
+Load-test the OIDC path: `AUTH_MODE=bearer BEARER_TOKEN=$TOKEN bash perf/run_perf.sh`.
+
 ## Monitoring & observability
 
 The API exposes Prometheus metrics at `GET /metrics` (unauthenticated). A `MetricsMiddleware`

@@ -1,0 +1,73 @@
+{
+  "realm": "retail",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "clientScopes": [
+    {
+      "name": "taxonomy-audience",
+      "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "false", "display.on.consent.screen": "false" },
+      "protocolMappers": [
+        {
+          "name": "taxonomy-audience-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "retail-taxonomy-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    },
+    {
+      "name": "taxonomy.read",
+      "description": "Read taxonomy",
+      "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "true" }
+    },
+    {
+      "name": "taxonomy.write",
+      "description": "Modify taxonomy",
+      "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "true" }
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "retail-taxonomy-spa",
+      "name": "Retail Taxonomy SPA",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:5173/*"],
+      "webOrigins": ["http://localhost:5173", "+"],
+      "attributes": { "pkce.code.challenge.method": "S256" },
+      "defaultClientScopes": ["openid", "profile", "email", "taxonomy-audience", "taxonomy.read"],
+      "optionalClientScopes": ["taxonomy.write"]
+    },
+    {
+      "clientId": "retail-taxonomy-m2m",
+      "name": "Retail Taxonomy M2M",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "m2m-dev-secret",
+      "standardFlowEnabled": false,
+      "serviceAccountsEnabled": true,
+      "defaultClientScopes": ["taxonomy-audience", "taxonomy.read", "taxonomy.write"]
+    }
+  ],
+  "users": [
+    {
+      "username": "sso.user",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "sso.user@example.com",
+      "firstName": "SSO",
+      "lastName": "User",
+      "credentials": [{ "type": "password", "value": "password", "temporary": false }]
+    }
+  ]
+}

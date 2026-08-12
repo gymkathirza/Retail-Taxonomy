@@ -26,6 +26,11 @@ services:
       TAXONOMY_SEED_CSV: /data/seed/taxonomy.csv
       DEMO_USER: ${DEMO_USER:-admin}
       DEMO_PASSWORD: ${DEMO_PASSWORD:-password}
+      # OAuth2/OIDC (Phase 2) — empty by default => OIDC disabled, Basic only.
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_AUDIENCE: ${OIDC_AUDIENCE:-}
+      OIDC_JWKS_URL: ${OIDC_JWKS_URL:-}
+      OIDC_REQUIRED_SCOPE: ${OIDC_REQUIRED_SCOPE:-}
     ports:
       - "8000:8000"
     volumes:
@@ -55,6 +60,11 @@ services:
     environment:
       - CHOKIDAR_USEPOLLING=true
       - VITE_API_PROXY_TARGET=http://api:8000
+      # OAuth2/OIDC (Phase 2) — empty by default => SSO button hidden.
+      - VITE_OIDC_AUTHORITY=${VITE_OIDC_AUTHORITY:-}
+      - VITE_OIDC_CLIENT_ID=${VITE_OIDC_CLIENT_ID:-}
+      - VITE_OIDC_SCOPE=${VITE_OIDC_SCOPE:-}
+      - VITE_OIDC_REDIRECT_URI=${VITE_OIDC_REDIRECT_URI:-}
     depends_on:
       api:
         condition: service_healthy
@@ -88,6 +98,21 @@ services:
       - ./docs/grafana/dashboard.json:/etc/grafana/provisioning/dashboards/dashboard.json:ro
     depends_on:
       - prometheus
+
+  # Optional local IdP for OAuth2/OIDC development. Start with:
+  #   docker compose --profile oidc up -d keycloak
+  # Not started by a plain `docker compose up` (kept out of the default stack).
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    profiles: ["oidc"]
+    command: ["start-dev", "--import-realm", "--http-port=8080"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./deploy/keycloak:/opt/keycloak/data/import:ro
 
 volumes:
   pgdata:

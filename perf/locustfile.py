@@ -15,9 +15,20 @@ import uuid
 
 from locust import HttpUser, between, task
 
-# The API protects /api/v1/* with HTTP Basic Auth (demo credentials).
+# The API protects /api/v1/* with HTTP Basic Auth (demo credentials) or, when
+# OIDC is enabled, an OAuth2 Bearer token. Default is Basic; set AUTH_MODE=bearer
+# and BEARER_TOKEN=<access token> to load-test the OIDC path.
 DEMO_USER = os.environ.get("DEMO_USER", "admin")
 DEMO_PASSWORD = os.environ.get("DEMO_PASSWORD", "password")
+AUTH_MODE = os.environ.get("AUTH_MODE", "basic").lower()
+BEARER_TOKEN = os.environ.get("BEARER_TOKEN", "")
+
+
+def _apply_auth(client) -> None:
+    if AUTH_MODE == "bearer" and BEARER_TOKEN:
+        client.headers["Authorization"] = f"Bearer {BEARER_TOKEN}"
+    else:
+        client.auth = (DEMO_USER, DEMO_PASSWORD)
 
 
 def _items(resp):
@@ -34,7 +45,7 @@ class ReadUser(HttpUser):
     wait_time = between(0.1, 0.5)
 
     def on_start(self):
-        self.client.auth = (DEMO_USER, DEMO_PASSWORD)
+        _apply_auth(self.client)
 
     @task(1)
     def health(self):
@@ -92,7 +103,7 @@ class WriteUser(HttpUser):
     wait_time = between(0.3, 1.0)
 
     def on_start(self):
-        self.client.auth = (DEMO_USER, DEMO_PASSWORD)
+        _apply_auth(self.client)
 
     @task
     def crud_cycle(self):
