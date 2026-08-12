@@ -2,7 +2,6 @@
 
 export DATABASE_URL ?= postgresql+psycopg://taxonomy:taxonomy@127.0.0.1:5432/taxonomy
 API_VENV := apps/api/.venv/bin
-PYTEST := $(API_VENV)/pytest
 
 up:
 	docker compose up --build -d
@@ -20,8 +19,8 @@ logs:
 test: test-unit test-component test-integration
 
 test-unit:
-	@if [ -x "$(PYTEST)" ]; then \
-		cd apps/api && PYTHONPATH=. ../.venv/bin/pytest tests/unit -v || PYTHONPATH=. .venv/bin/pytest tests/unit -v; \
+	@if [ -x "$(API_VENV)/pytest" ]; then \
+		cd apps/api && PYTHONPATH=. .venv/bin/pytest tests/unit -v; \
 	else \
 		docker compose run --rm -e PYTHONPATH=/app api pytest /app/tests/unit -v; \
 	fi
@@ -36,7 +35,7 @@ test-integration:
 		api pytest /app/tests/integration -v
 
 test-acceptance:
-	@echo "wire in M5: Playwright acceptance"
+	npx playwright test --config=playwright.config.ts
 
 smoke:
-	@echo "wire in M8: scripts/smoke_health.sh"
+	@bash scripts/smoke_health.sh

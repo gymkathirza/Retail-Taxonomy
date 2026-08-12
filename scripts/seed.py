@@ -75,8 +75,19 @@ def _get_or_create(
     return obj, True
 
 
-def seed(session: Session, csv_path: Path) -> dict[str, int]:
+def _reset_tables(session: Session) -> None:
+    """Clear hierarchy so seed totals match the CSV fixture exactly."""
+    from sqlalchemy import delete
+
+    for model in (Subcategory, Category, Department, Zone):
+        session.execute(delete(model))
+    session.flush()
+
+
+def seed(session: Session, csv_path: Path, *, reset: bool = True) -> dict[str, int]:
     created = {"zones": 0, "departments": 0, "categories": 0, "subcategories": 0}
+    if reset:
+        _reset_tables(session)
     with csv_path.open(newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
@@ -134,8 +145,9 @@ def main() -> None:
     SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     from sqlalchemy import func
 
+    reset = os.environ.get("SEED_RESET", "1") != "0"
     with SessionLocal() as session:
-        counts = seed(session, csv_path)
+        counts = seed(session, csv_path, reset=reset)
         summary = {
             "zones": session.scalar(select(func.count()).select_from(Zone)),
             "departments": session.scalar(select(func.count()).select_from(Department)),

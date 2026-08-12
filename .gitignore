@@ -17,6 +17,9 @@ apps/web/dist/
 apps/web/playwright-report/
 apps/web/test-results/
 apps/web/blob-report/
+playwright-report/
+test-results/
+blob-report/
 
 # Env / local
 .env
