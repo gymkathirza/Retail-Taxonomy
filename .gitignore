@@ -41,3 +41,6 @@ pgdata/
 
 # Load-test output
 perf/results/
+
+# TS build info
+apps/web/tsconfig.tsbuildinfo
