@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 COMPOSE := docker compose
 
-.PHONY: up down seed logs test test-unit test-integration test-component migrate
+.PHONY: up down seed logs test test-unit test-integration test-component migrate perf
 
 up: ## Build and start postgres + api + web
 	$(COMPOSE) up --build -d
@@ -28,3 +28,7 @@ test-integration: ## Backend integration tests (API + Postgres)
 
 test-component: ## Frontend component/type checks
 	cd apps/web && npm run build
+
+perf: ## Run the Locust load test headless (override HOST/USERS/RATE/TIME)
+	pip install -q -r perf/requirements.txt
+	bash perf/run_perf.sh

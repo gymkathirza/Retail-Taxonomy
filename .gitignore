@@ -6,4 +6,5 @@ node_modules/
 apps/web/dist/
 apps/web/tsconfig.tsbuildinfo
 .pytest_cache/
+perf/results/
 *.egg-info/

@@ -95,6 +95,63 @@ cd apps/api && python -m pytest
 cd apps/web && npm run build
 ```
 
+## Performance & load testing
+
+A [Locust](https://locust.io/) load-test suite lives in [`perf/`](perf/). It drives the
+common read workload (health, collection lists, `taxonomy/tree`, `taxonomy/paths`, and full
+Zone→Department→Category→SubCategory drill-downs) plus a smaller share of write traffic
+(create → update → soft-delete lifecycle).
+
+Run it (API must be up and seeded):
+
+```bash
+make perf                              # 50 users, 30s, against http://localhost:8000
+# or customize:
+HOST=http://localhost:8000 USERS=100 RATE=20 TIME=60s bash perf/run_perf.sh
+# interactive web UI:
+locust -f perf/locustfile.py --host http://localhost:8000   # then open http://localhost:8089
+```
+
+Results (CSV + summary) are written to `perf/results/`.
+
+### Benchmark
+
+Recorded on the local dev environment (single `uvicorn` worker, PostgreSQL 16 on the same
+4‑vCPU host), read‑heavy mixed workload, **50 concurrent users, 30s, spawn rate 10/s**.
+
+| Metric | Value |
+| --- | --- |
+| Total requests | 6,783 |
+| Failures | 0 (0.00%) |
+| Throughput | ~227 req/s |
+| Latency p50 | 17 ms |
+| Latency p90 | 63 ms |
+| Latency p95 | 97 ms |
+| Latency p99 | 220 ms |
+| Max | 384 ms |
+
+Per-endpoint (median / p95 / p99, ms):
+
+| Endpoint | req/s | p50 | p95 | p99 |
+| --- | ---: | ---: | ---: | ---: |
+| `GET /zones` | 57.0 | 15 | 61 | 84 |
+| `GET /zones/:id/departments` | 32.0 | 15 | 56 | 78 |
+| `GET /departments/:id/categories` | 24.5 | 11 | 46 | 71 |
+| `GET /categories/:id/subcategories` | 24.5 | 11 | 55 | 77 |
+| `GET /taxonomy/paths` | 17.2 | 20 | 64 | 97 |
+| `GET /taxonomy/tree` | 16.9 | 130 | 270 | 310 |
+| `GET /health` | 9.0 | 3 | 12 | 25 |
+| `GET /health/ready` | 7.4 | 16 | 59 | 71 |
+| `POST /zones` | 12.8 | 31 | 83 | 130 |
+| `PUT /zones/:id` | 12.8 | 31 | 82 | 120 |
+| `DELETE /zones/:id` | 12.8 | 21 | 55 | 86 |
+
+**Observations:** all endpoints held **0% error rate** at 50 concurrent users. Simple reads and
+CRUD writes stayed well under ~130 ms at p99. The slowest endpoint is `GET /taxonomy/tree`
+(p50 ~130 ms) because it walks the hierarchy with per-node queries (N+1); it is the primary
+candidate for optimization (eager joins or a single recursive query / the `sku_classification_paths`
+view) if the tree becomes a hot path.
+
 ## Cloud Agent environment
 
 `.cursor/environment.json` provisions this repo for Cursor Cloud Agents without Docker:
