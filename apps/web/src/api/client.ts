@@ -76,3 +76,31 @@ export function retireNode(level: Level, id: string) {
 export function restoreNode(level: Level, id: string) {
   return request<Node>("POST", `${itemPath[level]}/${id}/restore`);
 }
+
+export interface Stats {
+  zones: number;
+  departments: number;
+  categories: number;
+  paths: number;
+}
+
+interface TreeNode {
+  level: Level;
+  children: TreeNode[];
+}
+
+export async function getStats(): Promise<Stats> {
+  const data = await request<{ items: TreeNode[] }>("GET", `${V1}/taxonomy/tree`);
+  const stats: Stats = { zones: 0, departments: 0, categories: 0, paths: 0 };
+  for (const zone of data.items) {
+    stats.zones += 1;
+    for (const dept of zone.children) {
+      stats.departments += 1;
+      for (const cat of dept.children) {
+        stats.categories += 1;
+        stats.paths += cat.children.length; // subcategories = unique classification paths
+      }
+    }
+  }
+  return stats;
+}

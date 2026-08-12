@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   createNode,
+  getStats,
   listNodes,
   restoreNode,
   retireNode,
   updateNode,
   type Level,
   type Node,
+  type Stats,
 } from "./api/client";
 
 const LEVELS: Level[] = ["zone", "department", "category", "subcategory"];
@@ -34,6 +36,14 @@ export default function App() {
   const [includeInactive, setIncludeInactive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [health, setHealth] = useState<string>("checking…");
+  const [search, setSearch] = useState("");
+  const [stats, setStats] = useState<Stats | null>(null);
+
+  const reloadStats = useCallback(() => {
+    getStats()
+      .then(setStats)
+      .catch(() => setStats(null));
+  }, []);
 
   const parentIdFor = useCallback(
     (level: Level, cols: Record<Level, ColumnState>): string | null => {
@@ -85,6 +95,7 @@ export default function App() {
       .then(setHealth)
       .catch(() => setHealth("down"));
     refreshFrom("zone", columns, includeInactive);
+    reloadStats();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -104,6 +115,7 @@ export default function App() {
     try {
       await createNode(level, parentIdFor(level, columns), { name });
       await refreshFrom(level, columns, includeInactive);
+      reloadStats();
     } catch (e) {
       setError((e as Error).message);
     }
@@ -127,6 +139,7 @@ export default function App() {
     try {
       await retireNode(level, node.id);
       await refreshFrom(level, columns, includeInactive);
+      reloadStats();
     } catch (e) {
       setError((e as Error).message);
     }
@@ -137,25 +150,53 @@ export default function App() {
     try {
       await restoreNode(level, node.id);
       await refreshFrom(level, columns, includeInactive);
+      reloadStats();
     } catch (e) {
       setError((e as Error).message);
     }
   };
 
+  const healthy = health === "healthy";
+
   return (
     <div className="app">
       <div className="topbar">
-        <h1>Retail Taxonomy Console</h1>
-        <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
-          <label>
-            <input
-              type="checkbox"
-              checked={includeInactive}
-              onChange={(e) => setIncludeInactive(e.target.checked)}
-            />
-            Show inactive
-          </label>
-          <span className="status">API: {health}</span>
+        <div className="brand">
+          <div className="brand-logo">RT</div>
+          <div>
+            <h1>Retail Taxonomy Console</h1>
+            <p>Merchandise classification workspace</p>
+          </div>
+        </div>
+        <span className={`status-pill ${healthy ? "" : "down"}`}>
+          <span className="status-dot" />
+          API {health}
+        </span>
+      </div>
+
+      <div className="toolbar">
+        <div className="search">
+          <SearchIcon />
+          <input
+            value={search}
+            placeholder="Search zones, departments, categories…"
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <label className="toggle">
+          <input
+            type="checkbox"
+            checked={includeInactive}
+            onChange={(e) => setIncludeInactive(e.target.checked)}
+          />
+          <span className="switch" />
+          Show inactive
+        </label>
+        <div className="stats">
+          <div className="stat"><b>{stats ? stats.zones : "—"}</b><span>Zones</span></div>
+          <div className="stat"><b>{stats ? stats.departments : "—"}</b><span>Depts</span></div>
+          <div className="stat"><b>{stats ? stats.categories : "—"}</b><span>Categories</span></div>
+          <div className="stat"><b>{stats ? stats.paths : "—"}</b><span>Paths</span></div>
         </div>
       </div>
 
@@ -172,7 +213,9 @@ export default function App() {
               level={level}
               title={TITLES[level]}
               enabled={enabled}
+              hasChildren={level !== "subcategory"}
               nodes={columns[level].nodes}
+              search={search}
               selectedId={columns[level].selectedId}
               onSelect={(id) => select(level, id)}
               onCreate={(name) => handleCreate(level, name)}
@@ -189,11 +232,31 @@ export default function App() {
   );
 }
 
+function SearchIcon() {
+  return (
+    <svg
+      className="search-icon"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
+  );
+}
+
 interface ColumnProps {
   level: Level;
   title: string;
   enabled: boolean;
+  hasChildren: boolean;
   nodes: Node[];
+  search: string;
   selectedId: string | null;
   selected: Node | null;
   placeholder: string;
@@ -223,12 +286,23 @@ function Column(props: ColumnProps) {
     setDraft("");
   };
 
+  const query = props.search.trim().toLowerCase();
+  const visible = query
+    ? props.nodes.filter((n) => n.name.toLowerCase().includes(query))
+    : props.nodes;
+
   return (
     <div className="column">
-      <h2>{props.title}</h2>
+      <h2>
+        {props.title}
+        <span className="count">{visible.length}</span>
+      </h2>
       <ul>
         {props.nodes.length === 0 && <li className="empty">No items yet.</li>}
-        {props.nodes.map((n) => (
+        {props.nodes.length > 0 && visible.length === 0 && (
+          <li className="empty">No matches.</li>
+        )}
+        {visible.map((n) => (
           <li
             key={n.id}
             className={`${n.id === props.selectedId ? "selected" : ""} ${n.is_active ? "" : "inactive"}`}
@@ -236,6 +310,7 @@ function Column(props: ColumnProps) {
           >
             <span className="node-name">{n.name}</span>
             {!n.is_active && <span className="badge">retired</span>}
+            {props.hasChildren && n.is_active && <span className="chevron">›</span>}
           </li>
         ))}
       </ul>
