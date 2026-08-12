@@ -10,20 +10,16 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 
-def _repo_root() -> Path:
+def _api_root() -> Path:
+    """Resolve apps/api (host) or /app (Compose image) from this test file."""
     here = Path(__file__).resolve()
-    for parent in [here, *here.parents]:
-        if (parent / "apps" / "api" / "alembic.ini").is_file():
+    for parent in here.parents:
+        if (parent / "alembic.ini").is_file() and (parent / "alembic").is_dir():
             return parent
-        if (parent / "alembic.ini").is_file():
-            return parent
-    raise RuntimeError("Could not locate repository root from test file")
+    raise RuntimeError("Could not locate API root (alembic.ini + alembic/) from test file")
 
 
-REPO_ROOT = _repo_root()
-API_ROOT = REPO_ROOT / "apps" / "api"
-if not (API_ROOT / "alembic.ini").is_file():
-    API_ROOT = Path("/app")
+API_ROOT = _api_root()
 
 
 @pytest.fixture(scope="module")
