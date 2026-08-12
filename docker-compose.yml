@@ -42,5 +42,22 @@ services:
       timeout: 5s
       retries: 10
 
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    image: retail-taxonomy-web:local
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - VITE_API_PROXY_TARGET=http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   pgdata:
