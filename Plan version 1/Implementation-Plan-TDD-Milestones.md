@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Modify files only under `/Users/kathiresanmoorthy/Learning Playground/` (this repo: `Retail-Taxonomy`).
+- Modify files only under this repository root (`Retail-Taxonomy`); do not edit outside `$REPO_ROOT`.
 - Binding spec: `Plan version 1/Retail-Taxonomy-Assessment-Aligned-Proposal.md` Part A only. **Do not implement Part B.**
 - **No OIDC/JWT/OAuth2 bonus** in the first delivery (Basic Auth + UI password only). Document as follow-up if time remains.
 - PDF `Location` → DB/API/UI **`zones`**. Seed CSV may keep column `Location`.
