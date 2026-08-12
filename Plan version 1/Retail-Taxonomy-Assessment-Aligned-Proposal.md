@@ -738,3 +738,193 @@ Product/domain team, taxonomy steward, platform, security, integration owners, A
 1. **Ship Part A literally** against the PDF, in exercise order: unauthenticated CRUD → tests/CI/Compose → logging + Basic Auth + Prometheus/Grafana.
 2. **Keep Part B** as post-assessment modernization only.
 3. Graders score Exercises 1–3. Architecture depth is upside only after those asks are met.
+
+---
+
+# Phase 2 — OAuth2 / OIDC authentication (Basic Auth retained)
+
+> **Status: PROPOSED — awaiting review before implementation.** This phase adds
+> standards-based OAuth2 / OpenID Connect (OIDC) login **in addition to** the existing
+> HTTP Basic Auth. Basic Auth is **not removed**: both mechanisms are accepted concurrently
+> so existing clients, tests, and the demo `admin`/`password` flow keep working unchanged.
+
+## P2.0 Goals and non-goals
+
+**Goals**
+- Accept **either** HTTP Basic **or** an OAuth2/OIDC **Bearer** access token on every protected
+  endpoint (`/api/v1/*`, `/api/v1/health/details`). Public routes (`/health`, `/health/ready`,
+  `/metrics`) stay unauthenticated.
+- Add a web **"Sign in with SSO"** option using the OIDC **Authorization Code flow + PKCE**,
+  alongside the existing username/password (Basic) login form.
+- Support **machine-to-machine** access via the OAuth2 **Client Credentials** grant (Bearer token).
+- Be **backward compatible and opt-in**: when no OIDC provider is configured, behavior is
+  byte-for-byte identical to today (Basic only). No existing test changes required to keep passing.
+
+**Non-goals (this phase)**
+- Replacing Basic Auth, per-record ACLs, or the full enterprise role matrix from Part B (B5.3).
+- A production BFF/session server (noted as a future hardening step in P2.8; Part B B4).
+- User management/registration UI — identities live in the external IdP.
+
+## P2.1 Design: one dependency, two schemes
+
+Introduce a single unified auth dependency `require_auth` that replaces `require_basic_auth`
+at the router-inclusion sites in `app/main.py` (`_auth = [Depends(require_auth)]`). It inspects
+the `Authorization` header scheme:
+
+| Scheme | Validation | Principal produced |
+|---|---|---|
+| `Basic` | Existing constant-time compare vs `DEMO_USER`/`DEMO_PASSWORD` (unchanged `auth.py` logic) | `Principal(sub=username, method="basic", scopes=[])` |
+| `Bearer` | Verify JWT: RS256 signature via provider **JWKS**, plus `iss`, `aud`, `exp`/`nbf` (with small clock skew) | `Principal(sub=<sub/preferred_username>, method="oidc", scopes=<scope/roles claim>)` |
+| missing / unknown | `401` with `WWW-Authenticate: Basic, Bearer` | — |
+
+- `require_basic_auth` is **kept** (composed inside `require_auth`) so current unit/integration
+  tests importing it continue to pass.
+- The resolved `Principal` is attached to `request.state.user` (already logged by
+  `logging_setup.py`); `method` and `sub` are added to structured logs. **Tokens are never logged.**
+- Authorization stays **permissive** for the MVP: any successfully authenticated principal may
+  perform any CRUD action (same as today). Optional scope enforcement is described in P2.6.
+
+## P2.2 Backend components (new / changed)
+
+```text
+apps/api/app/
+  auth.py                 # keep require_basic_auth; add Principal + require_auth (compose Basic|Bearer)
+  oidc.py                 # NEW: OIDC discovery (.well-known), JWKS fetch + cache, JWT verify
+  config.py               # add OIDC_* settings (all optional; unset => OIDC disabled)
+  main.py                 # swap _auth to Depends(require_auth); health/details too
+apps/api/requirements.txt # add: pyjwt[crypto]  (JWKS/JWT verify); httpx already present
+```
+
+- **OIDC discovery + JWKS:** on first Bearer request (or lazily cached), fetch
+  `${OIDC_ISSUER}/.well-known/openid-configuration` to resolve `jwks_uri`, then cache JWKS keys
+  (keyed by `kid`) with a TTL and automatic refresh on unknown `kid` (handles key rotation).
+- **Library choice:** `pyjwt[crypto]` for verification (small, well understood) + `httpx` for
+  discovery/JWKS. Alternative `authlib` noted if we later want full client helpers.
+- **Provider-agnostic:** works with Keycloak, Auth0, Microsoft Entra ID, Google, Okta, etc.
+
+## P2.3 Configuration (all optional — unset disables OIDC)
+
+| Env var | Purpose | Example |
+|---|---|---|
+| `OIDC_ISSUER` | Issuer URL (enables OIDC when set) | `https://keycloak.local/realms/retail` |
+| `OIDC_AUDIENCE` | Expected `aud` of access tokens | `retail-taxonomy-api` |
+| `OIDC_JWKS_URL` | Override JWKS URL (else derived from discovery) | `${OIDC_ISSUER}/protocol/openid-connect/certs` |
+| `OIDC_REQUIRED_SCOPE` | Optional scope required for write ops (P2.6) | `taxonomy.write` |
+| `OIDC_CLOCK_SKEW_S` | Allowed clock skew for `exp`/`nbf` | `30` |
+
+Frontend (`apps/web`, Vite `import.meta.env`):
+
+| Env var | Purpose |
+|---|---|
+| `VITE_OIDC_AUTHORITY` | IdP authority/issuer for the SPA |
+| `VITE_OIDC_CLIENT_ID` | Public SPA client id |
+| `VITE_OIDC_SCOPE` | e.g. `openid profile email taxonomy.read taxonomy.write` |
+| `VITE_OIDC_REDIRECT_URI` | e.g. `http://localhost:5173/callback` |
+
+`.env.example` gains commented OIDC placeholders; leaving them blank keeps Basic-only behavior.
+
+## P2.4 Frontend changes (`apps/web`)
+
+- Keep the current Basic-auth login card exactly as is.
+- Add a **"Sign in with SSO"** button that starts Authorization Code + PKCE via
+  **`oidc-client-ts`** (dependency to add). Add a `/callback` route to complete the exchange.
+- `api/client.ts` gains an auth strategy: **prefer a valid OIDC access token (Bearer)** when an
+  SSO session exists; otherwise fall back to stored Basic credentials. Only one `Authorization`
+  header is sent per request.
+- Token handling: access token in memory (with silent renew); on 401, clear session → login.
+  Logout clears local state and optionally hits the IdP end-session endpoint.
+- The "SSO" button only renders when `VITE_OIDC_AUTHORITY` is configured (progressive enhancement).
+
+## P2.5 Local IdP for dev/test (Keycloak via Compose profile)
+
+- Add an **optional** `keycloak` service to `docker-compose.yml` behind a Compose **profile**
+  (`docker compose --profile oidc up`) with an imported realm (`deploy/keycloak/realm.json`)
+  pre-provisioning: a SPA public client (PKCE), an API audience, an M2M confidential client,
+  and `taxonomy.read` / `taxonomy.write` scopes plus a demo SSO user.
+- Non-OIDC `docker compose up` is unchanged (Keycloak not started), so the default dev loop and
+  the assessment path stay lightweight.
+
+## P2.6 Optional scope-based authorization (behind a flag)
+
+- When `OIDC_REQUIRED_SCOPE` is set, mutating verbs (`POST`/`PUT`/`DELETE`) require that scope in
+  the Bearer token; reads require authentication only. Basic-auth principals are treated as
+  fully authorized (unchanged demo behavior).
+- Default (unset) = today's permissive behavior. This is the bridge toward Part B roles
+  (Viewer/Editor/Approver…) without changing MVP semantics now.
+
+## P2.7 Testing strategy (TDD, keep the pyramid green)
+
+**Unit (`tests/unit/test_auth_oidc.py`)** — sign tokens locally with a test RSA keypair; stub JWKS:
+- valid Bearer → principal with expected `sub`/scopes; `method="oidc"`.
+- expired / `nbf` in future / wrong `aud` / wrong `iss` / bad signature / unknown `kid` → `401`.
+- scheme selection: Basic path unchanged; Bearer path chosen when present.
+- JWKS cache: refresh on unknown `kid`; no network call when cached.
+
+**Integration (`tests/integration/test_auth.py` — extend, don't rewrite)**:
+- **Regression:** existing Basic-auth cases still pass verbatim (proves coexistence).
+- Bearer with a locally-signed token (app configured against a stubbed issuer/JWKS) → `200` on
+  CRUD; tampered/expired → `401`.
+- Missing creds → `401` and `WWW-Authenticate: Basic, Bearer`.
+- With `OIDC_REQUIRED_SCOPE` set: read token can `GET` but not `POST` (`403`); write token can.
+
+**Component (`apps/web`)**: render both login options; client sends Bearer when an SSO session is
+mocked, Basic otherwise.
+
+**Acceptance (Playwright)**: existing Basic-auth browse→CRUD spec stays as-is. Add an SSO happy-path
+spec gated on the `oidc` Compose profile / CI service; skipped when no IdP is configured so the
+default suite never flakes.
+
+**Load test:** `perf/locustfile.py` gains an optional Bearer mode (`AUTH_MODE=bearer` with a
+pre-fetched token) while Basic remains the default, so benchmarks cover both.
+
+## P2.8 Security considerations
+
+- Standard OIDC validation: `iss`, `aud`, `exp`/`nbf` (± skew), RS256 signature via JWKS,
+  key rotation via `kid` refresh. Reject `alg=none` and symmetric algs.
+- SPA token storage: access token in memory + silent renew; avoid persisting refresh tokens in
+  `localStorage` (XSS risk). A server-side **BFF/session** (Part B B4) is the recommended future
+  hardening and is called out as out-of-scope here.
+- Never log tokens or `Authorization` headers (structlog already redacts; add explicit guard).
+- CORS/redirect-URI allowlists configured per environment; PKCE + `state` + `nonce` enforced.
+- Keep Basic Auth demo-only and documented as such; it is not a production credential model.
+
+## P2.9 Milestones (TDD, incremental, each commit keeps suite green)
+
+| # | Milestone | Deliverable |
+|---|---|---|
+| P2-M1 | `Principal` + `require_auth` (Basic still works) | RED: 401 `WWW-Authenticate: Basic, Bearer`; GREEN: compose Basic; regression suite green |
+| P2-M2 | `oidc.py` verify + JWKS cache (unit-tested w/ local keypair) | Bearer accepted/rejected correctly; no live IdP needed for tests |
+| P2-M3 | Wire `require_auth` into routers + `health/details`; config flags | Integration: Basic + Bearer both `200`; misuse `401` |
+| P2-M4 | Frontend SSO (PKCE) + client auth strategy + `/callback` | Component tests; manual SSO login |
+| P2-M5 | Optional scope enforcement behind `OIDC_REQUIRED_SCOPE` | Read/write scope integration tests |
+| P2-M6 | Keycloak Compose profile + realm import + docs | `--profile oidc` SSO acceptance test |
+| P2-M7 | Docs (README auth section), `.env.example`, perf Bearer mode | Updated README + green CI |
+
+**Commit cadence:** one red→green→refactor sequence per milestone; Basic-auth regression tests run
+on every commit to guarantee coexistence.
+
+## P2.10 Rollout / backward compatibility
+
+- Ship dark: with OIDC env unset, the app behaves exactly as today (Basic only) — safe to merge
+  before an IdP exists.
+- Enable per environment by setting `OIDC_*` (backend) and `VITE_OIDC_*` (frontend).
+- No database schema changes. No breaking API changes. Demo `admin`/`password` remains valid.
+
+## P2.11 Risks & mitigations
+
+| Risk | Mitigation |
+|---|---|
+| IdP unavailable in CI | SSO acceptance gated on `oidc` profile; core suite uses local-keypair token stubs |
+| Token `aud`/`iss` misconfig | Explicit config + clear `401` detail (no secrets) + startup log of expected `iss`/`aud` |
+| JWKS key rotation | Cache by `kid`, refresh on miss, TTL |
+| SPA XSS token theft | In-memory access token, silent renew, BFF noted as future hardening |
+| Scope creep into Part B RBAC | Keep MVP permissive; scope enforcement optional + flagged |
+
+## P2.12 Dependencies to add (on approval)
+
+- Backend: `pyjwt[crypto]` (JWT/JWKS verification). `httpx` already present.
+- Frontend: `oidc-client-ts` (Authorization Code + PKCE).
+- Dev only: Keycloak image via optional Compose profile.
+
+> **Please review this Phase 2 plan.** On approval I will implement it milestone-by-milestone
+> (P2-M1 → P2-M7), keeping Basic Auth and all current tests green throughout.
