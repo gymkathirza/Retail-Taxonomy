@@ -78,12 +78,12 @@ BUILD ships working unauthenticated CRUD. Do **not** add login, Basic Auth, logg
 
 The PDF states the hierarchy “uniquely identifies a SKU.” For the assessment:
 
-- Treat each full path `Location / Department / Category / SubCategory` as a **unique merchandise classification leaf** (SKU-class identity).
+- Treat each full path `Zone / Department / Category / SubCategory` as a **unique merchandise classification leaf** (SKU-class identity).
 - Persist the four-level hierarchy so a leaf is uniquely addressable by path and by stable UUID.
 - Allowed metadata: `id`, `description`, `created_at`, `updated_at` (as the PDF permits). **No `is_active` / soft-delete in the MVP.**
 - Do **not** build a separate Product/SKU catalog unless time remains after CRUD works.
 
-`Location` values (`Center`, `Perimeter`) behave like merchandising Area/Zone. Keep API/DB names as `location` for grader clarity; document the Area/Zone meaning in `docs/assessment-notes.md`.
+**Highlighted proposal:** PDF `Location` → model **`zones`**. Values (`Center`, `Perimeter`) are merchandising Area/Zone. Use table `zones`, FK `zone_id`, API `/api/v1/zones`, and UI label **Zone**. Seed CSV may keep the PDF column name `Location`; `scripts/seed.py` maps that column into `zones`. Document the PDF↔model mapping in `docs/assessment-notes.md`.
 
 ### A1.2 Relational schema (concrete)
 
@@ -92,7 +92,7 @@ Normalized four-table model. Parent delete is **CASCADE** (hard delete, matching
 ```sql
 -- Ship as Alembic migrations under apps/api/alembic/versions/
 
-CREATE TABLE locations (
+CREATE TABLE zones (
   id           UUID PRIMARY KEY,
   name         TEXT NOT NULL UNIQUE,
   description  TEXT,
@@ -102,12 +102,12 @@ CREATE TABLE locations (
 
 CREATE TABLE departments (
   id           UUID PRIMARY KEY,
-  location_id  UUID NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+  zone_id      UUID NOT NULL REFERENCES zones(id) ON DELETE CASCADE,
   name         TEXT NOT NULL,
   description  TEXT,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (location_id, name)
+  UNIQUE (zone_id, name)
 );
 
 CREATE TABLE categories (
@@ -133,15 +133,15 @@ CREATE TABLE subcategories (
 CREATE VIEW sku_classification_paths AS
 SELECT
   s.id AS subcategory_id,
-  l.name AS location,
+  z.name AS zone,
   d.name AS department,
   c.name AS category,
   s.name AS subcategory,
-  l.name || ' > ' || d.name || ' > ' || c.name || ' > ' || s.name AS full_path
+  z.name || ' > ' || d.name || ' > ' || c.name || ' > ' || s.name AS full_path
 FROM subcategories s
 JOIN categories c ON c.id = s.category_id
 JOIN departments d ON d.id = c.department_id
-JOIN locations l ON l.id = d.location_id;
+JOIN zones z ON z.id = d.zone_id;
 ```
 
 Soft-delete / retire is Part B only.
@@ -152,11 +152,13 @@ After reconstructing PDF line wraps, seed **must** produce:
 
 | Entity | Count |
 |---|---|
-| Locations | 2 (`Center`, `Perimeter`) |
+| Zones | 2 (`Center`, `Perimeter`) |
 | Departments | 8 |
 | Categories | 25 |
 | Subcategories | 61 |
 | Unique hierarchy paths | 61 |
+
+Seed CSV may retain the PDF header/column name `Location`; the seed script maps that column into the `zones` table.
 
 **PDF → CSV reconstruction rules** (document in `docs/assessment-notes.md`):
 
@@ -193,8 +195,8 @@ Format: JSON, UUID ids, UTC ISO-8601, RFC 7807 `application/problem+json` on err
 
 | Resource | Endpoints |
 |---|---|
-| Locations | `GET/POST /api/v1/locations`, `GET/PUT/DELETE /api/v1/locations/{id}` |
-| Departments | `GET/POST /api/v1/locations/{location_id}/departments`, `GET/PUT/DELETE /api/v1/departments/{id}` |
+| Zones | `GET/POST /api/v1/zones`, `GET/PUT/DELETE /api/v1/zones/{id}` |
+| Departments | `GET/POST /api/v1/zones/{zone_id}/departments`, `GET/PUT/DELETE /api/v1/departments/{id}` |
 | Categories | `GET/POST /api/v1/departments/{department_id}/categories`, `GET/PUT/DELETE /api/v1/categories/{id}` |
 | Subcategories | `GET/POST /api/v1/categories/{category_id}/subcategories`, `GET/PUT/DELETE /api/v1/subcategories/{id}` |
 | Tree / paths | `GET /api/v1/taxonomy/tree`, `GET /api/v1/taxonomy/paths` |
@@ -203,7 +205,7 @@ OpenAPI served at `/openapi.json`.
 
 **Contract examples** (same shape on all four resources):
 
-`POST /api/v1/locations/{location_id}/departments`
+`POST /api/v1/zones/{zone_id}/departments`
 
 ```json
 { "name": "Bakery", "description": "In-store bakery" }
@@ -214,7 +216,7 @@ OpenAPI served at `/openapi.json`.
 ```json
 {
   "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "location_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "zone_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
   "name": "Bakery",
   "description": "In-store bakery",
   "created_at": "2026-08-11T05:00:00Z",
@@ -239,8 +241,8 @@ OpenAPI served at `/openapi.json`.
   "type": "https://example.com/problems/duplicate-name",
   "title": "Conflict",
   "status": 409,
-  "detail": "A department named 'Bakery' already exists under this location.",
-  "instance": "/api/v1/locations/7c9e6679-7425-40de-944b-e07fc1f90ae7/departments"
+  "detail": "A department named 'Bakery' already exists under this zone.",
+  "instance": "/api/v1/zones/7c9e6679-7425-40de-944b-e07fc1f90ae7/departments"
 }
 ```
 
@@ -250,7 +252,7 @@ OpenAPI served at `/openapi.json`.
 
 BUILD UI has **no login screen**.
 
-- Hierarchy browser (tree or cascading lists): Location → Department → Category → SubCategory.
+- Hierarchy browser (tree or cascading lists): Zone → Department → Category → SubCategory.
 - Detail panel: **Create / Edit / Delete** for the selected level, with delete confirmation.
 - All reads/writes go through the REST API (Vite proxy; no browser→Postgres).
 - Empty / error / loading states.
@@ -515,7 +517,7 @@ Long-term target: React/TypeScript console; Python/FastAPI BFF+API+worker; Postg
 | Source statement | Enterprise interpretation | Assessment bridge (Part A) |
 |---|---|---|
 | Hierarchy uniquely identifies a SKU | Classifies merchandise; future `product`/`sku` references taxonomy | Unique four-level path is SKU-class identity now |
-| `Location` | Merchandising Area/Zone | Keep `location` naming; document Area/Zone |
+| PDF `Location` | Merchandising Area/Zone | Model as `zones` / `zone_id` / `/api/v1/zones` / UI Zone; CSV may keep `Location` |
 | CRUD includes delete | Soft-retire published/referenced master data | **Hard delete + CASCADE** in MVP |
 | Username/password + API Basic Auth | Demo only; production OIDC + workload identity | **Ship Basic Auth + UI password in RUN**; OIDC bonus |
 | Public repo; commit to master | Assessment-specific | Follow Part A git policy; enterprise uses protected `main` later |
