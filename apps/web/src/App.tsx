@@ -1,9 +1,27 @@
 import { useEffect, useState } from "react";
-import { api, TaxonomyNode } from "./api/client";
+import { api, TaxonomyNode, clearStoredAuth, getStoredAuth } from "./api/client";
+import Login from "./pages/Login";
 
 type Level = "zone" | "department" | "category" | "subcategory";
 
 export default function App() {
+  const [authed, setAuthed] = useState(() => Boolean(getStoredAuth()));
+
+  if (!authed) {
+    return <Login onLoggedIn={() => setAuthed(true)} />;
+  }
+
+  return (
+    <TaxonomyApp
+      onLogout={() => {
+        clearStoredAuth();
+        setAuthed(false);
+      }}
+    />
+  );
+}
+
+function TaxonomyApp({ onLogout }: { onLogout: () => void }) {
   const [includeInactive, setIncludeInactive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [zones, setZones] = useState<TaxonomyNode[]>([]);
@@ -195,6 +213,9 @@ export default function App() {
   return (
     <main style={{ fontFamily: "system-ui", margin: "1.5rem" }}>
       <h1>Retail Taxonomy</h1>
+      <button type="button" onClick={onLogout}>
+        Sign out
+      </button>
       <label>
         <input
           type="checkbox"
@@ -206,21 +227,36 @@ export default function App() {
       {error ? <p role="alert">{error}</p> : null}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem" }}>
-        {renderList("Zones", zones, (n) => {
-          setSelectedZone(n);
-          setSelectedDept(null);
-          setSelectedCat(null);
-          setSelectedSub(null);
-        }, selectedZone?.id)}
-        {renderList("Departments", departments, (n) => {
-          setSelectedDept(n);
-          setSelectedCat(null);
-          setSelectedSub(null);
-        }, selectedDept?.id)}
-        {renderList("Categories", categories, (n) => {
-          setSelectedCat(n);
-          setSelectedSub(null);
-        }, selectedCat?.id)}
+        {renderList(
+          "Zones",
+          zones,
+          (n) => {
+            setSelectedZone(n);
+            setSelectedDept(null);
+            setSelectedCat(null);
+            setSelectedSub(null);
+          },
+          selectedZone?.id,
+        )}
+        {renderList(
+          "Departments",
+          departments,
+          (n) => {
+            setSelectedDept(n);
+            setSelectedCat(null);
+            setSelectedSub(null);
+          },
+          selectedDept?.id,
+        )}
+        {renderList(
+          "Categories",
+          categories,
+          (n) => {
+            setSelectedCat(n);
+            setSelectedSub(null);
+          },
+          selectedCat?.id,
+        )}
         {renderList("Subcategories", subcategories, setSelectedSub, selectedSub?.id)}
       </div>
 

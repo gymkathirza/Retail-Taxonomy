@@ -5,12 +5,15 @@ const unique = `ShipZone-${Date.now()}`;
 const renamed = `${unique}-Updated`;
 
 test.describe("Taxonomy acceptance", () => {
-  test("browse → create → update → retire → restore → verify via API", async ({
+  test("login → browse → create → update → retire → restore → verify via API", async ({
     page,
     request,
   }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Retail Taxonomy" })).toBeVisible();
+    await page.getByLabel("Username").fill("admin");
+    await page.getByLabel("Password").fill("password");
+    await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page.getByLabel(/show inactive/i)).toBeVisible({ timeout: 30_000 });
 
     await page.getByLabel("Name").fill(unique);
@@ -43,7 +46,11 @@ test.describe("Taxonomy acceptance", () => {
       timeout: 15_000,
     });
 
-    const list = await request.get(`${API}/api/v1/zones`);
+    const list = await request.get(`${API}/api/v1/zones`, {
+      headers: {
+        Authorization: `Basic ${Buffer.from("admin:password").toString("base64")}`,
+      },
+    });
     expect(list.ok()).toBeTruthy();
     const body = await list.json();
     const match = (body.items as { name: string; is_active: boolean }[]).find(

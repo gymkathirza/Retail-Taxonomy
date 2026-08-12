@@ -42,6 +42,8 @@ def api_client(engine):
     cfg.set_main_option("script_location", str(API_ROOT / "alembic"))
     cfg.set_main_option("sqlalchemy.url", engine.url.render_as_string(hide_password=False))
     os.environ["DATABASE_URL"] = engine.url.render_as_string(hide_password=False)
+    os.environ["DEMO_USER"] = "admin"
+    os.environ["DEMO_PASSWORD"] = "password"
     command.upgrade(cfg, "head")
 
     # Rebuild app modules against the test DATABASE_URL.
@@ -58,6 +60,7 @@ def api_client(engine):
     importlib.reload(main_mod)
 
     with TestClient(main_mod.app) as client:
+        client.auth = ("admin", "password")
         yield client
 
 

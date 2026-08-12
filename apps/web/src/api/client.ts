@@ -10,21 +10,44 @@ export type TaxonomyNode = {
   category_id?: string;
 };
 
+const AUTH_KEY = "taxonomy_basic_auth";
+
+export function getStoredAuth(): string | null {
+  return sessionStorage.getItem(AUTH_KEY);
+}
+
+export function setStoredAuth(username: string, password: string): void {
+  const token = btoa(`${username}:${password}`);
+  sessionStorage.setItem(AUTH_KEY, token);
+}
+
+export function clearStoredAuth(): void {
+  sessionStorage.removeItem(AUTH_KEY);
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const auth = getStoredAuth();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(init?.headers as Record<string, string> | undefined),
+  };
+  if (auth) {
+    headers.Authorization = `Basic ${auth}`;
+  }
   const res = await fetch(path, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
+    headers,
   });
   if (res.status === 204) {
     return undefined as T;
   }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
+    console.error(
+      JSON.stringify({ event: "api_error", status: res.status, path }),
+    );
     const detail = (body as { detail?: string }).detail ?? res.statusText;
-    throw new Error(detail);
+    throw new Error(typeof detail === "string" ? detail : res.statusText);
   }
   return body as T;
 }

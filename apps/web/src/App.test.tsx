@@ -7,30 +7,36 @@ const listZones = vi.fn();
 const deleteZone = vi.fn();
 const restoreZone = vi.fn();
 
-vi.mock("./api/client", () => ({
-  api: {
-    listZones: (...args: unknown[]) => listZones(...args),
-    listDepartments: vi.fn().mockResolvedValue({ items: [] }),
-    listCategories: vi.fn().mockResolvedValue({ items: [] }),
-    listSubcategories: vi.fn().mockResolvedValue({ items: [] }),
-    createZone: vi.fn(),
-    createDepartment: vi.fn(),
-    createCategory: vi.fn(),
-    createSubcategory: vi.fn(),
-    updateZone: vi.fn(),
-    updateDepartment: vi.fn(),
-    updateCategory: vi.fn(),
-    updateSubcategory: vi.fn(),
-    deleteZone: (...args: unknown[]) => deleteZone(...args),
-    deleteDepartment: vi.fn(),
-    deleteCategory: vi.fn(),
-    deleteSubcategory: vi.fn(),
-    restoreZone: (...args: unknown[]) => restoreZone(...args),
-    restoreDepartment: vi.fn(),
-    restoreCategory: vi.fn(),
-    restoreSubcategory: vi.fn(),
-  },
-}));
+vi.mock("./api/client", async () => {
+  const actual = await vi.importActual<typeof import("./api/client")>("./api/client");
+  return {
+    ...actual,
+    getStoredAuth: () => "dGVzdDp0ZXN0",
+    clearStoredAuth: vi.fn(),
+    api: {
+      listZones: (...args: unknown[]) => listZones(...args),
+      listDepartments: vi.fn().mockResolvedValue({ items: [] }),
+      listCategories: vi.fn().mockResolvedValue({ items: [] }),
+      listSubcategories: vi.fn().mockResolvedValue({ items: [] }),
+      createZone: vi.fn(),
+      createDepartment: vi.fn(),
+      createCategory: vi.fn(),
+      createSubcategory: vi.fn(),
+      updateZone: vi.fn(),
+      updateDepartment: vi.fn(),
+      updateCategory: vi.fn(),
+      updateSubcategory: vi.fn(),
+      deleteZone: (...args: unknown[]) => deleteZone(...args),
+      deleteDepartment: vi.fn(),
+      deleteCategory: vi.fn(),
+      deleteSubcategory: vi.fn(),
+      restoreZone: (...args: unknown[]) => restoreZone(...args),
+      restoreDepartment: vi.fn(),
+      restoreCategory: vi.fn(),
+      restoreSubcategory: vi.fn(),
+    },
+  };
+});
 
 describe("Taxonomy UI", () => {
   beforeEach(() => {
