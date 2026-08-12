@@ -25,6 +25,12 @@ blob-report/
 .env
 *.log
 .DS_Store
+*.bundle
+.bundle*
+*.pem
+*.key
+id_rsa*
+credentials.json
 
 # IDE
 .idea/
