@@ -6,7 +6,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 import time
 
-from app.auth import require_basic_auth
+from app.auth import require_auth
 from app.logging_setup import RequestLoggingMiddleware
 from app.problem import http_exception_handler, validation_exception_handler
 from app.routers import categories, departments, health, subcategories, taxonomy, zones
@@ -62,9 +62,9 @@ app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
 app.include_router(health.router)
-app.include_router(health.details_router, dependencies=[Depends(require_basic_auth)])
+app.include_router(health.details_router, dependencies=[Depends(require_auth)])
 
-_auth = [Depends(require_basic_auth)]
+_auth = [Depends(require_auth)]
 app.include_router(zones.router, dependencies=_auth)
 app.include_router(departments.nested, dependencies=_auth)
 app.include_router(departments.router, dependencies=_auth)

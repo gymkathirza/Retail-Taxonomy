@@ -18,6 +18,7 @@ def problem_response(
     type_: str = "about:blank",
     instance: str | None = None,
     extra: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
 ) -> JSONResponse:
     body: dict[str, Any] = {
         "type": type_,
@@ -29,7 +30,12 @@ def problem_response(
         body["instance"] = instance
     if extra:
         body.update(extra)
-    return JSONResponse(status_code=status, content=body, media_type="application/problem+json")
+    return JSONResponse(
+        status_code=status,
+        content=body,
+        media_type="application/problem+json",
+        headers=headers,
+    )
 
 
 async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
@@ -48,6 +54,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
         detail=detail,
         type_=type_,
         instance=str(request.url.path),
+        headers=getattr(exc, "headers", None),
     )
 
 
