@@ -146,3 +146,8 @@ button { font: inherit; }
 .login-body .field input { width: 100%; }
 .login-body .btn-primary { width: 100%; margin-top: 4px; padding: 11px; }
 .login-error { color: var(--danger); font-size: 13px; margin: 0 0 12px; }
+.login-divider { text-align: center; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; margin: 14px 0 10px; position: relative; }
+.login-divider::before, .login-divider::after { content: ""; position: absolute; top: 50%; width: 40%; height: 1px; background: var(--line); }
+.login-divider::before { left: 0; }
+.login-divider::after { right: 0; }
+.login-sso { width: 100%; }

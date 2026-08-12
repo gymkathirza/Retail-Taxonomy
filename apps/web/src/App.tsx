@@ -1,11 +1,41 @@
 import { useEffect, useState } from "react";
 import { api, TaxonomyNode, clearStoredAuth, getStoredAuth } from "./api/client";
+import { completeSsoLogin, hasSsoSession, initOidc, logoutSso } from "./auth/oidc";
 import Login from "./pages/Login";
 
 type Level = "zone" | "department" | "category" | "subcategory";
 
 export default function App() {
-  const [authed, setAuthed] = useState(() => Boolean(getStoredAuth()));
+  const [authed, setAuthed] = useState(() => Boolean(getStoredAuth()) || hasSsoSession());
+  const [booting, setBooting] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    async function boot() {
+      // Complete the OIDC redirect if we're on the callback route.
+      if (window.location.pathname === "/callback") {
+        try {
+          await completeSsoLogin();
+        } catch {
+          /* fall through to login screen */
+        }
+        window.history.replaceState({}, "", "/");
+        if (active) setAuthed(true);
+      } else {
+        const user = await initOidc();
+        if (active && user) setAuthed(true);
+      }
+      if (active) setBooting(false);
+    }
+    boot();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (booting && window.location.pathname === "/callback") {
+    return null; // brief: finishing SSO sign-in
+  }
 
   if (!authed) {
     return <Login onLoggedIn={() => setAuthed(true)} />;
@@ -13,8 +43,9 @@ export default function App() {
 
   return (
     <TaxonomyApp
-      onLogout={() => {
+      onLogout={async () => {
         clearStoredAuth();
+        await logoutSso();
         setAuthed(false);
       }}
     />

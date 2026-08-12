@@ -1,5 +1,6 @@
 import { FormEvent, useState } from "react";
 import { setStoredAuth } from "../api/client";
+import { isOidcConfigured, loginWithSso } from "../auth/oidc";
 
 type Props = {
   onLoggedIn: () => void;
@@ -9,6 +10,7 @@ export default function Login({ onLoggedIn }: Props) {
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("password");
   const [error, setError] = useState<string | null>(null);
+  const ssoEnabled = isOidcConfigured();
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -64,6 +66,18 @@ export default function Login({ onLoggedIn }: Props) {
           <button type="submit" className="btn btn-primary">
             Sign in
           </button>
+          {ssoEnabled ? (
+            <>
+              <div className="login-divider">or</div>
+              <button
+                type="button"
+                className="btn btn-outline login-sso"
+                onClick={() => loginWithSso()}
+              >
+                Sign in with SSO
+              </button>
+            </>
+          ) : null}
         </form>
       </div>
     </div>

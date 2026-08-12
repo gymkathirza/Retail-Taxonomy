@@ -12,6 +12,22 @@ export type TaxonomyNode = {
 
 const AUTH_KEY = "taxonomy_basic_auth";
 
+// OAuth2/OIDC access token (Phase 2). Held in memory and set by the OIDC
+// helper after login/refresh; preferred over Basic when present.
+let bearerToken: string | null = null;
+
+export function setBearerToken(token: string): void {
+  bearerToken = token;
+}
+
+export function clearBearerToken(): void {
+  bearerToken = null;
+}
+
+export function getBearerToken(): string | null {
+  return bearerToken;
+}
+
 export function getStoredAuth(): string | null {
   return sessionStorage.getItem(AUTH_KEY);
 }
@@ -31,7 +47,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     "Content-Type": "application/json",
     ...(init?.headers as Record<string, string> | undefined),
   };
-  if (auth) {
+  // Prefer an OAuth2/OIDC Bearer token when a SSO session is active;
+  // otherwise fall back to stored HTTP Basic credentials.
+  if (bearerToken) {
+    headers.Authorization = `Bearer ${bearerToken}`;
+  } else if (auth) {
     headers.Authorization = `Basic ${auth}`;
   }
   const res = await fetch(path, {
