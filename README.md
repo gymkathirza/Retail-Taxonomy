@@ -31,6 +31,39 @@ make smoke
 
 **Demo login (after RUN auth):** username `admin`, password `password` (from `.env.example`).
 
+## Monitoring & observability
+
+The API exposes Prometheus metrics at `GET /metrics` (unauthenticated). A `MetricsMiddleware`
+records `http_requests_total{method,path,status}` and `http_request_duration_seconds{method,path}`
+for every request (the `/api/v1/*` label is collapsed to keep cardinality low). structlog also
+emits a structured log per request/CRUD op (`request.state.user` included, secrets/tokens never logged).
+
+**Prometheus** (`http://localhost:9090`) scrapes `api:8000/metrics` every 15s.
+- Confirm the scrape target is healthy: **Status → Targets** should show `retail-taxonomy-api` as `UP`.
+  If it's `DOWN`, the `api` container isn't reachable yet (wait for its healthcheck) — metrics only
+  appear once the API is up and has served at least one request.
+- Try these queries in the Prometheus **Graph** tab (metrics only appear after some traffic — hit
+  the UI or `curl` the API first):
+  - `http_requests_total` — raw request counters
+  - `sum by (status) (http_requests_total)` — requests grouped by status code
+  - `rate(http_request_duration_seconds_count[1m])` — request rate
+  - `histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))` — p95 latency
+
+**Grafana** (`http://localhost:3000`):
+- **Login: `admin` / `admin`.** There is intentionally no sign‑up (`GF_USERS_ALLOW_SIGN_UP=false`);
+  Grafana challenges with username/password because it's an admin account, not an app account.
+- **For clients / read‑only viewers:** anonymous viewing is enabled
+  (`GF_AUTH_ANONYMOUS_ENABLED=true`, role `Viewer`), so anyone can open Grafana and view the
+  provisioned dashboard **without logging in** — the login prompt is only needed to *edit*. Override the
+  admin password via `GF_SECURITY_ADMIN_PASSWORD` for non-demo use.
+- A Prometheus datasource and a starter dashboard are auto‑provisioned from `docs/grafana/`.
+
+Quick self-check that metrics are recording (no Prometheus needed):
+
+```bash
+curl -s http://localhost:8000/metrics | grep http_requests_total   # counters increase as you use the app
+```
+
 ## Makefile targets
 
 | Target | Purpose |

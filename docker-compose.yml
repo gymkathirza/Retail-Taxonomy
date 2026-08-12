@@ -77,6 +77,11 @@ services:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_USERS_ALLOW_SIGN_UP: "false"
+      # Let clients view dashboards without logging in (read-only). Admin
+      # login (admin/admin) is still required to edit.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+      GF_AUTH_ANONYMOUS_ORG_NAME: "Main Org."
     volumes:
       - ./docs/grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro
       - ./docs/grafana/dashboard.yml:/etc/grafana/provisioning/dashboards/dashboard.yml:ro

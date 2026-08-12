@@ -50,6 +50,49 @@ function TaxonomyApp({ onLogout }: { onLogout: () => void }) {
     setZones(res.items);
   }
 
+  // Refetch every currently-visible column and re-sync the selected refs so
+  // edits (rename/description), retires, and restores reflect immediately
+  // without needing to navigate away and back.
+  async function reloadVisible() {
+    const z = (await api.listZones(includeInactive)).items;
+    setZones(z);
+
+    let deps = departments;
+    let cats = categories;
+    let subs = subcategories;
+
+    if (selectedZone) {
+      deps = (await api.listDepartments(selectedZone.id, includeInactive)).items;
+      setDepartments(deps);
+    }
+    if (selectedDept) {
+      cats = (await api.listCategories(selectedDept.id, includeInactive)).items;
+      setCategories(cats);
+    }
+    if (selectedCat) {
+      subs = (await api.listSubcategories(selectedCat.id, includeInactive)).items;
+      setSubcategories(subs);
+    }
+
+    // Keep the selected node objects in sync (name/description/is_active).
+    if (selectedZone) {
+      const f = z.find((n) => n.id === selectedZone.id);
+      if (f) setSelectedZone(f);
+    }
+    if (selectedDept) {
+      const f = deps.find((n) => n.id === selectedDept.id);
+      if (f) setSelectedDept(f);
+    }
+    if (selectedCat) {
+      const f = cats.find((n) => n.id === selectedCat.id);
+      if (f) setSelectedCat(f);
+    }
+    if (selectedSub) {
+      const f = subs.find((n) => n.id === selectedSub.id);
+      if (f) setSelectedSub(f);
+    }
+  }
+
   useEffect(() => {
     refreshZones().catch((e: Error) => setError(e.message));
   }, [includeInactive]);
@@ -107,19 +150,7 @@ function TaxonomyApp({ onLogout }: { onLogout: () => void }) {
         await api.createSubcategory(selectedCat.id, payload);
       setName("");
       setDescription("");
-      await refreshZones();
-      if (selectedZone) {
-        const d = await api.listDepartments(selectedZone.id, includeInactive);
-        setDepartments(d.items);
-      }
-      if (selectedDept) {
-        const c = await api.listCategories(selectedDept.id, includeInactive);
-        setCategories(c.items);
-      }
-      if (selectedCat) {
-        const s = await api.listSubcategories(selectedCat.id, includeInactive);
-        setSubcategories(s.items);
-      }
+      await reloadVisible();
     } catch (e) {
       setError((e as Error).message);
     }
@@ -137,7 +168,7 @@ function TaxonomyApp({ onLogout }: { onLogout: () => void }) {
         await api.updateCategory(selected.node.id, payload);
       if (selected.level === "subcategory")
         await api.updateSubcategory(selected.node.id, payload);
-      await refreshZones();
+      await reloadVisible();
     } catch (e) {
       setError((e as Error).message);
     }
@@ -162,7 +193,7 @@ function TaxonomyApp({ onLogout }: { onLogout: () => void }) {
       if (selected.level === "zone") setSelectedZone(null);
       if (selected.level === "department") setSelectedDept(null);
       if (selected.level === "category") setSelectedCat(null);
-      await refreshZones();
+      await reloadVisible();
     } catch (e) {
       setError((e as Error).message);
     }
@@ -176,7 +207,7 @@ function TaxonomyApp({ onLogout }: { onLogout: () => void }) {
       if (selected.level === "department") await api.restoreDepartment(selected.node.id);
       if (selected.level === "category") await api.restoreCategory(selected.node.id);
       if (selected.level === "subcategory") await api.restoreSubcategory(selected.node.id);
-      await refreshZones();
+      await reloadVisible();
     } catch (e) {
       setError((e as Error).message);
     }
