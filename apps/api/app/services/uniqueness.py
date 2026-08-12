@@ -30,11 +30,9 @@ def has_duplicate_sibling_name(
     Uniqueness includes inactive rows so a retired name cannot be recreated.
     """
     candidate = normalize_sibling_name(name)
-    for row in existing:
-        if exclude_id is not None and row.id == exclude_id:
-            continue
-        if row.parent_id != parent_id:
-            continue
-        if normalize_sibling_name(row.name) == candidate:
-            return True
-    return False
+    return any(
+        row.parent_id == parent_id
+        and normalize_sibling_name(row.name) == candidate
+        and (exclude_id is None or row.id != exclude_id)
+        for row in existing
+    )
