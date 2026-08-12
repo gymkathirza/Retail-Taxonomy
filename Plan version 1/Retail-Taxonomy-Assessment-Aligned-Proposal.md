@@ -17,7 +17,7 @@
          
 # Part A — Assessment submission (Exercises 1–3)
 
-This part satisfies the PDF literally. Enterprise practice that would conflict with a grader (OIDC-only, soft-delete, protected `main`, AI workflow) lives in Part B only.
+This part satisfies the PDF literally. Enterprise practice that would conflict with a grader (OIDC-only, protected `main`, AI workflow) lives in Part B only. Soft-delete (`is_active`) is **in Part A** — HTTP DELETE retires nodes; hard purge stays out of scope.
 
 ## A0. Assessment commitments (non-negotiable)
 
@@ -28,7 +28,7 @@ This part satisfies the PDF literally. Enterprise practice that would conflict w
 | Preferred stack | **React + TypeScript**, **Python + FastAPI**, **PostgreSQL 16** |
 | Schema + persist + seed | Four-table relational model; Compose installs/configures DB; `scripts/seed.py` loads `data/seed/taxonomy.csv` |
 | REST API | CRUD on hierarchy models (unauthenticated in BUILD) |
-| Web UI CRUD via API | React UI create/read/update/**hard delete** through the API |
+| Web UI CRUD via API | React UI create/read/update/**soft-delete (retire)** through the API |
 | TDD + runnable tests | Unit, component, integration, acceptance with documented `make` targets |
 | Build/deploy outside IDE | `docker compose` + `Makefile`; README also documents a non-Docker fallback |
 | Logging | **structlog** JSON middleware added in RUN commits on Exercise 1 handlers |
@@ -80,14 +80,16 @@ The PDF states the hierarchy “uniquely identifies a SKU.” For the assessment
 
 - Treat each full path `Zone / Department / Category / SubCategory` as a **unique merchandise classification leaf** (SKU-class identity).
 - Persist the four-level hierarchy so a leaf is uniquely addressable by path and by stable UUID.
-- Allowed metadata: `id`, `description`, `created_at`, `updated_at` (as the PDF permits). **No `is_active` / soft-delete in the MVP.**
+- Allowed metadata: `id`, `description`, `is_active`, `created_at`, `updated_at` (as the PDF permits, plus soft-delete flag).
 - Do **not** build a separate Product/SKU catalog unless time remains after CRUD works.
 
 **Highlighted proposal:** PDF `Location` → model **`zones`**. Values (`Center`, `Perimeter`) are merchandising Area/Zone. Use table `zones`, FK `zone_id`, API `/api/v1/zones`, and UI label **Zone**. Seed CSV may keep the PDF column name `Location`; `scripts/seed.py` maps that column into `zones`. Document the PDF↔model mapping in `docs/assessment-notes.md`.
 
+**Highlighted proposal (soft-delete):** HTTP `DELETE` = soft-delete via `is_active BOOLEAN NOT NULL DEFAULT true` on `zones`, `departments`, `categories`, and `subcategories`. `DELETE` sets `is_active=false` on the node **and all descendants** in one transaction; idempotent `204` if already inactive. FKs are `ON DELETE RESTRICT` (no physical CASCADE wipe). Hard purge is out of scope.
+
 ### A1.2 Relational schema (concrete)
 
-Normalized four-table model. Parent delete is **CASCADE** (hard delete, matching the PDF CRUD ask).
+Normalized four-table model. Soft-delete via `is_active`; FKs are **`ON DELETE RESTRICT`** (no physical CASCADE wipe). Hard purge is out of scope.
 
 ```sql
 -- Ship as Alembic migrations under apps/api/alembic/versions/
@@ -96,15 +98,17 @@ CREATE TABLE zones (
   id           UUID PRIMARY KEY,
   name         TEXT NOT NULL UNIQUE,
   description  TEXT,
+  is_active    BOOLEAN NOT NULL DEFAULT true,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE departments (
   id           UUID PRIMARY KEY,
-  zone_id      UUID NOT NULL REFERENCES zones(id) ON DELETE CASCADE,
+  zone_id      UUID NOT NULL REFERENCES zones(id) ON DELETE RESTRICT,
   name         TEXT NOT NULL,
   description  TEXT,
+  is_active    BOOLEAN NOT NULL DEFAULT true,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (zone_id, name)
@@ -112,9 +116,10 @@ CREATE TABLE departments (
 
 CREATE TABLE categories (
   id             UUID PRIMARY KEY,
-  department_id  UUID NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
+  department_id  UUID NOT NULL REFERENCES departments(id) ON DELETE RESTRICT,
   name           TEXT NOT NULL,
   description    TEXT,
+  is_active      BOOLEAN NOT NULL DEFAULT true,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (department_id, name)
@@ -122,9 +127,10 @@ CREATE TABLE categories (
 
 CREATE TABLE subcategories (
   id           UUID PRIMARY KEY,
-  category_id  UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+  category_id  UUID NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
   name         TEXT NOT NULL,
   description  TEXT,
+  is_active    BOOLEAN NOT NULL DEFAULT true,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (category_id, name)
@@ -137,14 +143,15 @@ SELECT
   d.name AS department,
   c.name AS category,
   s.name AS subcategory,
-  z.name || ' > ' || d.name || ' > ' || c.name || ' > ' || s.name AS full_path
+  z.name || ' > ' || d.name || ' > ' || c.name || ' > ' || s.name AS full_path,
+  s.is_active AS is_active
 FROM subcategories s
 JOIN categories c ON c.id = s.category_id
 JOIN departments d ON d.id = c.department_id
 JOIN zones z ON z.id = d.zone_id;
 ```
 
-Soft-delete / retire is Part B only.
+Uniqueness includes inactive names (`UNIQUE` still applies after soft-delete). Recreating a retired sibling name → `409`. Restore is explicit (see A1.4).
 
 ### A1.3 Seed data (must pass)
 
@@ -158,7 +165,7 @@ After reconstructing PDF line wraps, seed **must** produce:
 | Subcategories | 61 |
 | Unique hierarchy paths | 61 |
 
-Seed CSV may retain the PDF header/column name `Location`; the seed script maps that column into the `zones` table.
+Seed CSV may retain the PDF header/column name `Location`; the seed script maps that column into the `zones` table. **Seed all rows with `is_active=true`.**
 
 **PDF → CSV reconstruction rules** (document in `docs/assessment-notes.md`):
 
@@ -195,13 +202,22 @@ Format: JSON, UUID ids, UTC ISO-8601, RFC 7807 `application/problem+json` on err
 
 | Resource | Endpoints |
 |---|---|
-| Zones | `GET/POST /api/v1/zones`, `GET/PUT/DELETE /api/v1/zones/{id}` |
-| Departments | `GET/POST /api/v1/zones/{zone_id}/departments`, `GET/PUT/DELETE /api/v1/departments/{id}` |
-| Categories | `GET/POST /api/v1/departments/{department_id}/categories`, `GET/PUT/DELETE /api/v1/categories/{id}` |
-| Subcategories | `GET/POST /api/v1/categories/{category_id}/subcategories`, `GET/PUT/DELETE /api/v1/subcategories/{id}` |
+| Zones | `GET/POST /api/v1/zones`, `GET/PUT/DELETE /api/v1/zones/{id}`, `POST /api/v1/zones/{id}/restore` |
+| Departments | `GET/POST /api/v1/zones/{zone_id}/departments`, `GET/PUT/DELETE /api/v1/departments/{id}`, `POST /api/v1/departments/{id}/restore` |
+| Categories | `GET/POST /api/v1/departments/{department_id}/categories`, `GET/PUT/DELETE /api/v1/categories/{id}`, `POST /api/v1/categories/{id}/restore` |
+| Subcategories | `GET/POST /api/v1/categories/{category_id}/subcategories`, `GET/PUT/DELETE /api/v1/subcategories/{id}`, `POST /api/v1/subcategories/{id}/restore` |
 | Tree / paths | `GET /api/v1/taxonomy/tree`, `GET /api/v1/taxonomy/paths` |
 
 OpenAPI served at `/openapi.json`.
+
+**Soft-delete / list / restore contract:**
+
+- `DELETE /api/v1/{resource}/{id}` sets `is_active=false` on the node **and all descendants** in one transaction → `204 No Content`. Idempotent: already inactive → still `204`.
+- FKs remain `ON DELETE RESTRICT`; rows are not physically deleted. Hard purge is out of scope.
+- `GET` lists, tree, and paths default to **active-only**. Pass `?include_inactive=true` to include retired nodes.
+- `GET` by id returns the row even when inactive (`200` with `"is_active": false`).
+- Uniqueness includes inactive names → recreating a retired sibling name → `409`.
+- `POST /api/v1/{resource}/{id}/restore` restores **the node only** (`is_active=true`). Restoring a child whose parent is inactive → `409`. Descendants stay inactive until restored individually.
 
 **Contract examples** (same shape on all four resources):
 
@@ -219,12 +235,13 @@ OpenAPI served at `/openapi.json`.
   "zone_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
   "name": "Bakery",
   "description": "In-store bakery",
+  "is_active": true,
   "created_at": "2026-08-11T05:00:00Z",
   "updated_at": "2026-08-11T05:00:00Z"
 }
 ```
 
-`GET` item → `200` same object. `GET` collection → `{ "items": [ ... ] }`.
+`GET` item → `200` same object (including inactive). `GET` collection → `{ "items": [ ... ] }` (active-only unless `?include_inactive=true`).
 
 `PUT` item:
 
@@ -232,9 +249,11 @@ OpenAPI served at `/openapi.json`.
 { "name": "Bakery", "description": "Updated" }
 ```
 
-`DELETE` item → `204 No Content`. Children are removed by **ON DELETE CASCADE**.
+`DELETE` item → `204 No Content` (soft-delete: node + descendants `is_active=false` in one transaction; idempotent if already inactive).
 
-`409` duplicate sibling name:
+`POST .../restore` → `200` with the restored object (`"is_active": true`). Child restore with inactive parent → `409`.
+
+`409` duplicate sibling name (active or inactive):
 
 ```json
 {
@@ -253,7 +272,10 @@ OpenAPI served at `/openapi.json`.
 BUILD UI has **no login screen**.
 
 - Hierarchy browser (tree or cascading lists): Zone → Department → Category → SubCategory.
-- Detail panel: **Create / Edit / Delete** for the selected level, with delete confirmation.
+- Detail panel: **Create / Edit / Retire (soft-delete) / Restore** for the selected level.
+- **Retire confirmation** before calling `DELETE` (soft-delete).
+- **Show inactive** toggle: when on, lists/tree request `?include_inactive=true`; when off, active-only.
+- **Restore** action on inactive nodes calls `POST /api/v1/{resource}/{id}/restore` (node only; surface parent-inactive `409`).
 - All reads/writes go through the REST API (Vite proxy; no browser→Postgres).
 - Empty / error / loading states.
 
@@ -269,10 +291,11 @@ Inside Compose, the web container proxies `/api` → `http://api:8000`. No CORS 
 
 - [ ] Postgres up via Compose; migrations applied; seed loads 61 unique paths
 - [ ] Wrapped subcategory names intact
-- [ ] REST CRUD works for all four levels, including hard delete + CASCADE
-- [ ] React UI performs CRUD exclusively through the API (no auth yet)
+- [ ] REST CRUD works for all four levels, including soft-delete (node + descendants), restore, and `?include_inactive=true`
+- [ ] React UI performs CRUD exclusively through the API (no auth yet): retire confirmation, show-inactive toggle, Restore
 - [ ] At least one feature shows red → green → refactor commits on `master`
 - [ ] README documents how to run API + UI locally
+- [ ] Seed loads all rows with `is_active=true`
 
 ---
 
@@ -288,10 +311,10 @@ Inside Compose, the web container proxies `/api` → `http://api:8000`. No CORS 
 
 | Layer | Examples | Command |
 |---|---|---|
-| Unit | Uniqueness helpers, seed line-join, CASCADE documented in domain | `make test-unit` → `pytest apps/api/tests/unit` |
-| Component | Tree/list, create/edit forms, delete confirm | `make test-component` → `npm --prefix apps/web test` (Vitest + Testing Library) |
-| Integration | API + real Postgres 16 (Compose service `postgres`) | `make test-integration` → `pytest apps/api/tests/integration` |
-| Acceptance | Browse → create → update → delete → verify via API | `make test-acceptance` |
+| Unit | Uniqueness helpers (incl. inactive), seed line-join, soft-delete descendant walk | `make test-unit` → `pytest apps/api/tests/unit` |
+| Component | Tree/list, create/edit forms, retire confirm, show-inactive toggle, Restore | `make test-component` → `npm --prefix apps/web test` (Vitest + Testing Library) |
+| Integration | API + real Postgres 16 (Compose service `postgres`); soft-delete + restore + include_inactive | `make test-integration` → `pytest apps/api/tests/integration` |
+| Acceptance | Browse → create → update → retire → restore → verify via API | `make test-acceptance` |
 
 Acceptance is **mandatory**, not optional:
 
@@ -304,14 +327,17 @@ CI runs the same install before Playwright.
 
 **Invariants (BUILD/SHIP):**
 
-- No duplicate sibling names under the same parent (`409`)
-- `DELETE` parent **cascades** children
-- Seed is idempotent and asserts 2 / 8 / 25 / 61 + two wrap names
+- No duplicate sibling names under the same parent (`409`), including inactive names
+- `DELETE` soft-deletes the node **and all descendants** in one transaction; idempotent `204` if already inactive
+- FKs are `ON DELETE RESTRICT`; no physical CASCADE wipe; hard purge out of scope
+- `GET` lists/tree/paths are active-only by default; `?include_inactive=true` includes retired; `GET` by id returns inactive rows
+- `POST .../restore` restores the node only; child restore with inactive parent → `409`
+- Seed is idempotent, asserts 2 / 8 / 25 / 61 + two wrap names, and seeds all `is_active=true`
 
 **Invariants (RUN commits):**
 
 - Missing/invalid Basic Auth → `401` on `/api/v1/*` (except documented public routes)
-- UI delete still calls `DELETE` and refreshes after login
+- UI retire still calls `DELETE` (soft-delete) and refreshes after login; Restore and show-inactive remain available after auth
 
 ### A2.2 Build and deploy outside the IDE
 
@@ -476,11 +502,12 @@ README.md                   # stranger runbook + non-Docker appendix
 - At least one BUILD red → green → refactor sequence
 - React + FastAPI + Postgres 16 via Compose; Vite proxies `/api`
 - Seed → exactly 61 unique paths; wrapped names preserved
-- Full CRUD UI via REST, including hard delete + CASCADE
-- Unit / component / integration / acceptance tests documented and green
+- Full CRUD UI via REST, including soft-delete (retire) + restore + show-inactive toggle
+- Unit / component / integration / acceptance tests documented and green (soft-delete / restore / include_inactive covered)
 - CI workflow on `master`; non-Docker appendix present
 - RUN: structlog, UI password + API Basic Auth, `/health` + `/health/ready`, Prometheus + Grafana, `make smoke`
 - Root README: clone → up → seed → (after RUN: login) → CRUD → tests → health
+- Seed all rows `is_active=true`; uniqueness holds across inactive names; hard purge out of scope
 
 ---
 
@@ -518,7 +545,7 @@ Long-term target: React/TypeScript console; Python/FastAPI BFF+API+worker; Postg
 |---|---|---|
 | Hierarchy uniquely identifies a SKU | Classifies merchandise; future `product`/`sku` references taxonomy | Unique four-level path is SKU-class identity now |
 | PDF `Location` | Merchandising Area/Zone | Model as `zones` / `zone_id` / `/api/v1/zones` / UI Zone; CSV may keep `Location` |
-| CRUD includes delete | Soft-retire published/referenced master data | **Hard delete + CASCADE** in MVP |
+| CRUD includes delete | Soft-retire published/referenced master data | **Soft-delete via `is_active` in Part A** (DELETE retires node + descendants; restore explicit; hard purge out of scope) |
 | Username/password + API Basic Auth | Demo only; production OIDC + workload identity | **Ship Basic Auth + UI password in RUN**; OIDC bonus |
 | Public repo; commit to master | Assessment-specific | Follow Part A git policy; enterprise uses protected `main` later |
 
@@ -650,7 +677,7 @@ Template → signed upload → scan → map → dry-run → exceptions → apply
 
 ### B7.4 Premium operations UX
 
-Taxonomy workbench: tree + table + inspector + activity. WCAG 2.2 AA. Soft-retire replaces casual hard delete for published data.
+Taxonomy workbench: tree + table + inspector + activity. WCAG 2.2 AA. Soft-retire is already Part A (`is_active`); enterprise adds release-aware retire, impact preview, and governed publish workflows on top.
 
 ### B7.5 Integration
 
