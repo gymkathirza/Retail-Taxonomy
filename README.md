@@ -26,36 +26,84 @@ make smoke
 |---|---|
 | UI | http://localhost:5173 |
 | API / OpenAPI | http://localhost:8000 / http://localhost:8000/openapi.json |
+| Keycloak | http://localhost:8080 (admin / admin) |
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3000 (admin / admin unless overridden) |
 
-**Demo login (after RUN auth):** username `admin`, password `password` (from `.env.example`).
+**Demo login:** Basic Auth `admin` / `password`, or Keycloak SSO `sso.user` / `password` (see Authentication).
 
-## Authentication — Basic + optional OAuth2/OIDC SSO
+## Authentication — Basic + OAuth2/OIDC (default)
 
 `/api/v1/*` (and `/api/v1/health/details`) accept **either**:
 - **HTTP Basic Auth** — demo `admin` / `password` (always available), or
-- an **OAuth2/OIDC Bearer** access token — only when OIDC is configured.
+- an **OAuth2/OIDC Bearer** access token from Keycloak (and social IdPs brokered by Keycloak).
 
 `/health`, `/health/ready`, and `/metrics` stay public. Missing/invalid credentials
 return `401` with `WWW-Authenticate: Basic, Bearer`.
 
-**Enabling OIDC (opt-in):** set the `OIDC_*` (API) and `VITE_OIDC_*` (SPA) values in `.env`
-(see `.env.example`). When unset, behavior is unchanged (Basic only) and the UI hides the
-"Sign in with SSO" button. Bearer tokens are verified against the provider's JWKS (issuer,
-audience, expiry, RS256, key rotation). Optional `OIDC_REQUIRED_SCOPE` gates writes
-(`POST/PUT/DELETE`) for OIDC principals; Basic principals stay fully authorized.
+The default Compose stack starts **Keycloak** on `:8080` and wires API + SPA OIDC env
+vars (see `.env.example`). The login page offers:
 
-**Local IdP (Keycloak) for development:**
+| Option | Works out of the box? | Notes |
+|---|---|---|
+| **Basic Auth** | Yes | `admin` / `password` |
+| **Keycloak (SSO)** | Yes | Local realm user `sso.user` / `password` |
+| **Google** | After OAuth app setup | Routed via Keycloak identity provider `google` |
+| **GitHub** | After OAuth app setup | Routed via Keycloak identity provider `github` |
+
+Bearer tokens are verified against Keycloak JWKS (issuer, audience, expiry, RS256).
+Optional `OIDC_REQUIRED_SCOPE` gates writes (`POST/PUT/DELETE`) for OIDC principals;
+Basic principals stay fully authorized.
+
+**Quick SSO check (Keycloak local user):**
 
 ```bash
-docker compose --profile oidc up -d keycloak      # starts Keycloak on :8080 (admin/admin)
-# imports realm "retail": SPA client (PKCE), API audience, M2M client, taxonomy.read/write,
-# and demo SSO user sso.user / password.
-cp .env.example .env   # then uncomment the OIDC_* and VITE_OIDC_* lines
-docker compose up -d --build api web              # pick up the OIDC env
-# open http://localhost:5173 → "Sign in with SSO" → Keycloak (sso.user / password)
+make up    # includes Keycloak; wait ~30–60s for first boot
+open http://localhost:5173
+# → Sign in with Keycloak (SSO) → sso.user / password
+# Keycloak admin console: http://localhost:8080 (admin / admin)
 ```
+
+### Enable Google / GitHub (OAuth app setup)
+
+Social buttons are always shown when OIDC is configured. They only complete login after
+you register OAuth apps and paste client ID/secret into Keycloak (realm stubs ship with
+`REPLACE_ME_*` placeholders).
+
+#### 1. Google Cloud OAuth client
+
+1. Open [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials).
+2. Create **OAuth client ID** → application type **Web application**.
+3. Authorized redirect URI (Keycloak broker callback):
+   `http://localhost:8080/realms/retail/broker/google/endpoint`
+4. Copy **Client ID** and **Client secret**.
+
+#### 2. GitHub OAuth App
+
+1. Open [GitHub → Settings → Developer settings → OAuth Apps → New OAuth App](https://github.com/settings/developers).
+2. **Homepage URL:** `http://localhost:5173`
+3. **Authorization callback URL:**
+   `http://localhost:8080/realms/retail/broker/github/endpoint`
+4. Register the app, then generate a **Client secret**. Copy **Client ID** and secret.
+
+#### 3. Paste credentials into Keycloak
+
+1. Open http://localhost:8080 → sign in as `admin` / `admin`.
+2. Realm selector (top left) → **retail**.
+3. **Identity providers** → **Google** → set Client ID / Client secret → Save.
+4. Repeat for **GitHub**.
+5. On http://localhost:5173 use **Sign in with Google** or **Sign in with GitHub**.
+
+(Optional) You can also edit the placeholders in `deploy/keycloak/realm-retail.json` and
+recreate the Keycloak container so import picks up new values (`docker compose up -d --force-recreate keycloak`).
+Keycloak only re-imports a realm when it does not already exist in its DB — wipe the
+Keycloak container (no persistent volume in this repo) or update via the admin UI.
+
+#### 4. How the SPA routes social login
+
+Buttons call OIDC Authorization Code + PKCE against Keycloak and pass `kc_idp_hint=google`
+or `kc_idp_hint=github`, so Keycloak forwards straight to that provider. Tokens returned to
+the SPA are still **Keycloak-issued**; the API keeps a single JWKS trust path.
 
 Machine-to-machine (Client Credentials) example:
 
@@ -68,6 +116,8 @@ curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/v1/zones
 
 Load-test the OIDC path: `AUTH_MODE=bearer BEARER_TOKEN=$TOKEN bash perf/run_perf.sh`.
 
+To disable OIDC (Basic-only), clear `OIDC_ISSUER` / `VITE_OIDC_AUTHORITY` in `.env` and
+omit or stop the `keycloak` service.
 ## Monitoring & observability
 
 The API exposes Prometheus metrics at `GET /metrics` (unauthenticated). A `MetricsMiddleware`

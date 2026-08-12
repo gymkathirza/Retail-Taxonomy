@@ -151,6 +151,17 @@ button { font: inherit; }
 .login-divider::before { left: 0; }
 .login-divider::after { right: 0; }
 .login-sso { width: 100%; }
+.login-oauth { display: grid; gap: 8px; }
+.login-oauth-note {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.login-oauth-note code {
+  font-size: 11.5px;
+  color: var(--ink);
+}
 
 /* Visually hidden but kept in the accessible name for Playwright/AT */
 .sr-only {

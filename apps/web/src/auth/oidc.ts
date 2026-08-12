@@ -1,7 +1,8 @@
 // OIDC (OAuth2 Authorization Code + PKCE) helper — Phase 2.
-// Optional: only active when VITE_OIDC_AUTHORITY + VITE_OIDC_CLIENT_ID are set.
-// When unconfigured, every function is a safe no-op so the app keeps working
-// with HTTP Basic Auth exactly as before.
+// Active when VITE_OIDC_AUTHORITY + VITE_OIDC_CLIENT_ID are set (Compose defaults
+// point at local Keycloak). Social buttons use Keycloak identity-provider hints
+// (kc_idp_hint); Google/GitHub only succeed after real OAuth app credentials are
+// configured in Keycloak (see README).
 import { User, UserManager, WebStorageStateStore } from "oidc-client-ts";
 import { setBearerToken, clearBearerToken } from "../api/client";
 
@@ -11,6 +12,8 @@ const clientId = env.VITE_OIDC_CLIENT_ID;
 const scope = env.VITE_OIDC_SCOPE || "openid profile email";
 const redirectUri =
   env.VITE_OIDC_REDIRECT_URI || `${window.location.origin}/callback`;
+
+export type SocialIdp = "google" | "github";
 
 export function isOidcConfigured(): boolean {
   return Boolean(authority && clientId);
@@ -55,8 +58,12 @@ export async function initOidc(): Promise<User | null> {
   }
 }
 
-export async function loginWithSso(): Promise<void> {
-  await getManager().signinRedirect();
+/** Start OIDC login. Pass google|github to skip Keycloak's picker (kc_idp_hint). */
+export async function loginWithSso(idp?: SocialIdp): Promise<void> {
+  const args = idp
+    ? { extraQueryParams: { kc_idp_hint: idp } }
+    : undefined;
+  await getManager().signinRedirect(args);
 }
 
 export async function completeSsoLogin(): Promise<void> {

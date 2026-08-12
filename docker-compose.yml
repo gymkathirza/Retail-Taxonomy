@@ -26,10 +26,11 @@ services:
       TAXONOMY_SEED_CSV: /data/seed/taxonomy.csv
       DEMO_USER: ${DEMO_USER:-admin}
       DEMO_PASSWORD: ${DEMO_PASSWORD:-password}
-      # OAuth2/OIDC (Phase 2) — empty by default => OIDC disabled, Basic only.
-      OIDC_ISSUER: ${OIDC_ISSUER:-}
-      OIDC_AUDIENCE: ${OIDC_AUDIENCE:-}
-      OIDC_JWKS_URL: ${OIDC_JWKS_URL:-}
+      # OAuth2/OIDC — enabled by default against local Keycloak.
+      # Issuer is the browser-facing URL (token `iss`); JWKS uses Compose DNS.
+      OIDC_ISSUER: ${OIDC_ISSUER:-http://localhost:8080/realms/retail}
+      OIDC_AUDIENCE: ${OIDC_AUDIENCE:-retail-taxonomy-api}
+      OIDC_JWKS_URL: ${OIDC_JWKS_URL:-http://keycloak:8080/realms/retail/protocol/openid-connect/certs}
       OIDC_REQUIRED_SCOPE: ${OIDC_REQUIRED_SCOPE:-}
     ports:
       - "8000:8000"
@@ -60,11 +61,11 @@ services:
     environment:
       - CHOKIDAR_USEPOLLING=true
       - VITE_API_PROXY_TARGET=http://api:8000
-      # OAuth2/OIDC (Phase 2) — empty by default => SSO button hidden.
-      - VITE_OIDC_AUTHORITY=${VITE_OIDC_AUTHORITY:-}
-      - VITE_OIDC_CLIENT_ID=${VITE_OIDC_CLIENT_ID:-}
-      - VITE_OIDC_SCOPE=${VITE_OIDC_SCOPE:-}
-      - VITE_OIDC_REDIRECT_URI=${VITE_OIDC_REDIRECT_URI:-}
+      # OAuth2/OIDC — SPA SSO + social buttons (via Keycloak) on by default.
+      - VITE_OIDC_AUTHORITY=${VITE_OIDC_AUTHORITY:-http://localhost:8080/realms/retail}
+      - VITE_OIDC_CLIENT_ID=${VITE_OIDC_CLIENT_ID:-retail-taxonomy-spa}
+      - VITE_OIDC_SCOPE=${VITE_OIDC_SCOPE:-openid profile email taxonomy.read taxonomy.write}
+      - VITE_OIDC_REDIRECT_URI=${VITE_OIDC_REDIRECT_URI:-http://localhost:5173/callback}
     depends_on:
       api:
         condition: service_healthy
@@ -99,16 +100,16 @@ services:
     depends_on:
       - prometheus
 
-  # Optional local IdP for OAuth2/OIDC development. Start with:
-  #   docker compose --profile oidc up -d keycloak
-  # Not started by a plain `docker compose up` (kept out of the default stack).
+  # Local IdP (started with the default stack). Admin console: admin / admin.
+  # Realm "retail" is imported from deploy/keycloak/realm-retail.json.
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
-    profiles: ["oidc"]
-    command: ["start-dev", "--import-realm", "--http-port=8080"]
+    command: ["start-dev", "--import-realm", "--http-port=8080", "--hostname-strict=false"]
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
     ports:
       - "8080:8080"
     volumes:

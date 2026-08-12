@@ -69,5 +69,39 @@
       "lastName": "User",
       "credentials": [{ "type": "password", "value": "password", "temporary": false }]
     }
+  ],
+  "identityProviders": [
+    {
+      "alias": "google",
+      "displayName": "Google",
+      "providerId": "google",
+      "enabled": true,
+      "trustEmail": true,
+      "storeToken": false,
+      "linkOnly": false,
+      "firstBrokerLoginFlowAlias": "first broker login",
+      "config": {
+        "clientId": "REPLACE_ME_GOOGLE_CLIENT_ID",
+        "clientSecret": "REPLACE_ME_GOOGLE_CLIENT_SECRET",
+        "defaultScope": "openid profile email",
+        "syncMode": "IMPORT"
+      }
+    },
+    {
+      "alias": "github",
+      "displayName": "GitHub",
+      "providerId": "github",
+      "enabled": true,
+      "trustEmail": true,
+      "storeToken": false,
+      "linkOnly": false,
+      "firstBrokerLoginFlowAlias": "first broker login",
+      "config": {
+        "clientId": "REPLACE_ME_GITHUB_CLIENT_ID",
+        "clientSecret": "REPLACE_ME_GITHUB_CLIENT_SECRET",
+        "defaultScope": "user:email",
+        "syncMode": "IMPORT"
+      }
+    }
   ]
 }
