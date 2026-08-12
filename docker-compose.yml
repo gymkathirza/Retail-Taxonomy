@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-taxonomy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-taxonomy}
+      POSTGRES_DB: ${POSTGRES_DB:-taxonomy}
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-taxonomy} -d ${POSTGRES_DB:-taxonomy}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
