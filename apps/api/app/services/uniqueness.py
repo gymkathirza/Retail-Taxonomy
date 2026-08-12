@@ -10,6 +10,7 @@ class SiblingName:
     parent_id: str | None
     name: str
     is_active: bool = True
+    id: str | None = None
 
 
 def normalize_sibling_name(name: str) -> str:
@@ -30,7 +31,7 @@ def has_duplicate_sibling_name(
     """
     candidate = normalize_sibling_name(name)
     for row in existing:
-        if exclude_id is not None and getattr(row, "id", None) == exclude_id:
+        if exclude_id is not None and row.id == exclude_id:
             continue
         if row.parent_id != parent_id:
             continue
