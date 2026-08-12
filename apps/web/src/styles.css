@@ -5,9 +5,11 @@
   --panel: #fffdfb;
   --ink: #26302a;
   --muted: #7d8a80;
-  --brand: #1f9d55;
-  --brand-dark: #177243;
-  --brand-soft: #e8f3ec;
+  --brand: #2563eb;
+  --brand-dark: #1d4ed8;
+  --brand-soft: #e7efff;
+  --header-from: #2563eb;
+  --header-to: #3b82f6;
   --gold: #b08640;
   --gold-soft: #f6edda;
   --line: #ece3d6;
@@ -40,29 +42,28 @@ body { margin: 0; }
   align-items: center;
   justify-content: space-between;
   padding: 18px 30px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
+  background: linear-gradient(90deg, var(--header-from), var(--header-to));
+  color: #fff;
 }
 .brand { display: flex; align-items: center; gap: 14px; }
 .brand-logo {
   width: 42px; height: 42px; border-radius: 12px;
-  background: linear-gradient(135deg, var(--brand), #38c172);
+  background: rgba(255, 255, 255, 0.18);
   display: grid; place-items: center;
   color: #fff; font-weight: 800; font-family: var(--font-serif); font-size: 18px;
-  box-shadow: 0 6px 16px rgba(31, 157, 85, 0.35);
-  border: 1.5px solid rgba(176, 134, 64, 0.35);
+  border: 1.5px solid rgba(255, 255, 255, 0.28);
 }
-.brand h1 { margin: 0; font-family: var(--font-serif); font-size: 19px; font-weight: 600; letter-spacing: 0.2px; }
-.brand p { margin: 1px 0 0; font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.18em; }
+.brand h1 { margin: 0; font-family: var(--font-serif); font-size: 19px; font-weight: 600; letter-spacing: 0.2px; color: #fff; }
+.brand p { margin: 1px 0 0; font-size: 11.5px; color: rgba(255, 255, 255, 0.82); text-transform: uppercase; letter-spacing: 0.18em; }
 
 .status-pill {
   display: inline-flex; align-items: center; gap: 8px;
   font-size: 12.5px; font-weight: 600; padding: 8px 14px; border-radius: 999px;
-  background: var(--brand-soft); color: var(--brand-dark);
+  background: rgba(255, 255, 255, 0.16); color: #fff;
 }
-.status-pill.down { background: var(--danger-soft); color: var(--danger); }
-.status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 3px rgba(31,157,85,0.2); }
-.status-pill.down .status-dot { background: var(--danger); box-shadow: 0 0 0 3px rgba(179,69,63,0.2); }
+.status-pill.down { background: rgba(179, 69, 63, 0.3); color: #fff; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.3); }
+.status-pill.down .status-dot { background: #f9b4b0; box-shadow: 0 0 0 3px rgba(249, 180, 176, 0.3); }
 
 /* Toolbar */
 .toolbar { display: flex; align-items: center; gap: 16px; padding: 18px 30px 6px; }
