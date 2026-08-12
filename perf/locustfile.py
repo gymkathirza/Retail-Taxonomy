@@ -9,10 +9,15 @@ Scenarios:
               and full parent->child drill-downs (the common UI workload).
 - WriteUser : mixed create/update/retire lifecycle (a smaller share of load).
 """
+import os
 import random
 import uuid
 
 from locust import HttpUser, between, task
+
+# The API protects /api/v1/* with HTTP Basic Auth (demo credentials).
+DEMO_USER = os.environ.get("DEMO_USER", "admin")
+DEMO_PASSWORD = os.environ.get("DEMO_PASSWORD", "password")
 
 
 def _items(resp):
@@ -27,6 +32,9 @@ class ReadUser(HttpUser):
 
     weight = 4
     wait_time = between(0.1, 0.5)
+
+    def on_start(self):
+        self.client.auth = (DEMO_USER, DEMO_PASSWORD)
 
     @task(1)
     def health(self):
@@ -82,6 +90,9 @@ class WriteUser(HttpUser):
 
     weight = 1
     wait_time = between(0.3, 1.0)
+
+    def on_start(self):
+        self.client.auth = (DEMO_USER, DEMO_PASSWORD)
 
     @task
     def crud_cycle(self):

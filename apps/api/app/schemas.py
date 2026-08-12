@@ -1,26 +1,27 @@
-import uuid
+"""Pydantic request/response schemas."""
+
+from __future__ import annotations
+
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class NodeBase(BaseModel):
-    name: str = Field(min_length=1, max_length=200)
+class ZoneCreate(BaseModel):
+    name: str = Field(min_length=1)
     description: str | None = None
 
 
-class NodeCreate(NodeBase):
-    pass
+class ZoneUpdate(BaseModel):
+    name: str = Field(min_length=1)
+    description: str | None = None
 
 
-class NodeUpdate(NodeBase):
-    pass
-
-
-class ZoneOut(BaseModel):
+class ZoneRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: uuid.UUID
+    id: UUID
     name: str
     description: str | None
     is_active: bool
@@ -28,27 +29,120 @@ class ZoneOut(BaseModel):
     updated_at: datetime
 
 
-class DepartmentOut(ZoneOut):
-    zone_id: uuid.UUID
+class DepartmentCreate(BaseModel):
+    name: str = Field(min_length=1)
+    description: str | None = None
 
 
-class CategoryOut(ZoneOut):
-    department_id: uuid.UUID
+class DepartmentUpdate(BaseModel):
+    name: str = Field(min_length=1)
+    description: str | None = None
 
 
-class SubcategoryOut(ZoneOut):
-    category_id: uuid.UUID
+class DepartmentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    zone_id: UUID
+    name: str
+    description: str | None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
 
 
-class Collection(BaseModel):
-    items: list
+class CategoryCreate(BaseModel):
+    name: str = Field(min_length=1)
+    description: str | None = None
 
 
-class PathOut(BaseModel):
-    subcategory_id: uuid.UUID
+class CategoryUpdate(BaseModel):
+    name: str = Field(min_length=1)
+    description: str | None = None
+
+
+class CategoryRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    department_id: UUID
+    name: str
+    description: str | None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class SubcategoryCreate(BaseModel):
+    name: str = Field(min_length=1)
+    description: str | None = None
+
+
+class SubcategoryUpdate(BaseModel):
+    name: str = Field(min_length=1)
+    description: str | None = None
+
+
+class SubcategoryRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    category_id: UUID
+    name: str
+    description: str | None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class ItemList(BaseModel):
+    items: list[ZoneRead | DepartmentRead | CategoryRead | SubcategoryRead]
+
+
+class TaxonomyPath(BaseModel):
+    subcategory_id: UUID
     zone: str
     department: str
     category: str
     subcategory: str
     full_path: str
     is_active: bool
+
+
+class TaxonomyTreeSubcategory(BaseModel):
+    id: UUID
+    name: str
+    description: str | None
+    is_active: bool
+
+
+class TaxonomyTreeCategory(BaseModel):
+    id: UUID
+    name: str
+    description: str | None
+    is_active: bool
+    subcategories: list[TaxonomyTreeSubcategory]
+
+
+class TaxonomyTreeDepartment(BaseModel):
+    id: UUID
+    name: str
+    description: str | None
+    is_active: bool
+    categories: list[TaxonomyTreeCategory]
+
+
+class TaxonomyTreeZone(BaseModel):
+    id: UUID
+    name: str
+    description: str | None
+    is_active: bool
+    departments: list[TaxonomyTreeDepartment]
+
+
+class TaxonomyTreeResponse(BaseModel):
+    items: list[TaxonomyTreeZone]
+
+
+class TaxonomyPathsResponse(BaseModel):
+    items: list[TaxonomyPath]

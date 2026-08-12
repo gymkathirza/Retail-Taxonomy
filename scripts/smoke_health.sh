@@ -1,13 +1,9 @@
 #!/usr/bin/env bash
-# Unauthenticated liveness/readiness smoke check. Exits non-zero on failure.
+# Smoke health probes — no credentials required.
 set -euo pipefail
 
-BASE_URL="${BASE_URL:-http://localhost:8000}"
+API_BASE="${API_BASE:-http://127.0.0.1:8000}"
 
-echo "[smoke] GET ${BASE_URL}/health"
-curl -fsS "${BASE_URL}/health" >/dev/null
-
-echo "[smoke] GET ${BASE_URL}/health/ready"
-curl -fsS "${BASE_URL}/health/ready" >/dev/null
-
-echo "[smoke] OK"
+curl -sf "${API_BASE}/health" >/dev/null
+curl -sf "${API_BASE}/health/ready" >/dev/null
+echo "smoke ok: ${API_BASE}/health and /health/ready"

@@ -1,106 +1,131 @@
-export type Level = "zone" | "department" | "category" | "subcategory";
-
-export interface Node {
+export type TaxonomyNode = {
   id: string;
   name: string;
   description: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  zone_id?: string;
+  department_id?: string;
+  category_id?: string;
+};
+
+const AUTH_KEY = "taxonomy_basic_auth";
+
+export function getStoredAuth(): string | null {
+  return sessionStorage.getItem(AUTH_KEY);
 }
 
-export interface ProblemDetail {
-  title?: string;
-  detail?: string;
-  status?: number;
+export function setStoredAuth(username: string, password: string): void {
+  const token = btoa(`${username}:${password}`);
+  sessionStorage.setItem(AUTH_KEY, token);
 }
 
-const V1 = "/api/v1";
+export function clearStoredAuth(): void {
+  sessionStorage.removeItem(AUTH_KEY);
+}
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const auth = getStoredAuth();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(init?.headers as Record<string, string> | undefined),
+  };
+  if (auth) {
+    headers.Authorization = `Basic ${auth}`;
+  }
   const res = await fetch(path, {
-    method,
-    headers: body ? { "Content-Type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
+    ...init,
+    headers,
   });
-  if (res.status === 204) return undefined as T;
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : undefined;
+  if (res.status === 204) {
+    return undefined as T;
+  }
+  const body = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const problem = data as ProblemDetail;
-    // Fixed shape console log for failed calls.
-    console.error({ event: "api_error", status: res.status, path });
-    throw new Error(problem?.detail || problem?.title || `Request failed (${res.status})`);
+    console.error(
+      JSON.stringify({ event: "api_error", status: res.status, path }),
+    );
+    const detail = (body as { detail?: string }).detail ?? res.statusText;
+    throw new Error(typeof detail === "string" ? detail : res.statusText);
   }
-  return data as T;
+  return body as T;
 }
 
-const collectionPath: Record<Level, (parentId: string) => string> = {
-  zone: () => `${V1}/zones`,
-  department: (zoneId) => `${V1}/zones/${zoneId}/departments`,
-  category: (deptId) => `${V1}/departments/${deptId}/categories`,
-  subcategory: (catId) => `${V1}/categories/${catId}/subcategories`,
+export const api = {
+  listZones: (includeInactive = false) =>
+    request<{ items: TaxonomyNode[] }>(
+      `/api/v1/zones${includeInactive ? "?include_inactive=true" : ""}`,
+    ),
+  createZone: (payload: { name: string; description?: string }) =>
+    request<TaxonomyNode>("/api/v1/zones", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateZone: (id: string, payload: { name: string; description?: string }) =>
+    request<TaxonomyNode>(`/api/v1/zones/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  deleteZone: (id: string) =>
+    request<void>(`/api/v1/zones/${id}`, { method: "DELETE" }),
+  restoreZone: (id: string) =>
+    request<TaxonomyNode>(`/api/v1/zones/${id}/restore`, { method: "POST" }),
+
+  listDepartments: (zoneId: string, includeInactive = false) =>
+    request<{ items: TaxonomyNode[] }>(
+      `/api/v1/zones/${zoneId}/departments${includeInactive ? "?include_inactive=true" : ""}`,
+    ),
+  createDepartment: (zoneId: string, payload: { name: string; description?: string }) =>
+    request<TaxonomyNode>(`/api/v1/zones/${zoneId}/departments`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateDepartment: (id: string, payload: { name: string; description?: string }) =>
+    request<TaxonomyNode>(`/api/v1/departments/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  deleteDepartment: (id: string) =>
+    request<void>(`/api/v1/departments/${id}`, { method: "DELETE" }),
+  restoreDepartment: (id: string) =>
+    request<TaxonomyNode>(`/api/v1/departments/${id}/restore`, { method: "POST" }),
+
+  listCategories: (departmentId: string, includeInactive = false) =>
+    request<{ items: TaxonomyNode[] }>(
+      `/api/v1/departments/${departmentId}/categories${includeInactive ? "?include_inactive=true" : ""}`,
+    ),
+  createCategory: (departmentId: string, payload: { name: string; description?: string }) =>
+    request<TaxonomyNode>(`/api/v1/departments/${departmentId}/categories`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateCategory: (id: string, payload: { name: string; description?: string }) =>
+    request<TaxonomyNode>(`/api/v1/categories/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  deleteCategory: (id: string) =>
+    request<void>(`/api/v1/categories/${id}`, { method: "DELETE" }),
+  restoreCategory: (id: string) =>
+    request<TaxonomyNode>(`/api/v1/categories/${id}/restore`, { method: "POST" }),
+
+  listSubcategories: (categoryId: string, includeInactive = false) =>
+    request<{ items: TaxonomyNode[] }>(
+      `/api/v1/categories/${categoryId}/subcategories${includeInactive ? "?include_inactive=true" : ""}`,
+    ),
+  createSubcategory: (categoryId: string, payload: { name: string; description?: string }) =>
+    request<TaxonomyNode>(`/api/v1/categories/${categoryId}/subcategories`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateSubcategory: (id: string, payload: { name: string; description?: string }) =>
+    request<TaxonomyNode>(`/api/v1/subcategories/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  deleteSubcategory: (id: string) =>
+    request<void>(`/api/v1/subcategories/${id}`, { method: "DELETE" }),
+  restoreSubcategory: (id: string) =>
+    request<TaxonomyNode>(`/api/v1/subcategories/${id}/restore`, { method: "POST" }),
 };
-
-const itemPath: Record<Level, string> = {
-  zone: `${V1}/zones`,
-  department: `${V1}/departments`,
-  category: `${V1}/categories`,
-  subcategory: `${V1}/subcategories`,
-};
-
-export async function listNodes(
-  level: Level,
-  parentId: string | null,
-  includeInactive: boolean
-): Promise<Node[]> {
-  const base = level === "zone" ? collectionPath.zone("") : collectionPath[level](parentId!);
-  const url = `${base}?include_inactive=${includeInactive}`;
-  const data = await request<{ items: Node[] }>("GET", url);
-  return data.items;
-}
-
-export function createNode(level: Level, parentId: string | null, body: { name: string; description?: string }) {
-  const base = level === "zone" ? collectionPath.zone("") : collectionPath[level](parentId!);
-  return request<Node>("POST", base, body);
-}
-
-export function updateNode(level: Level, id: string, body: { name: string; description?: string }) {
-  return request<Node>("PUT", `${itemPath[level]}/${id}`, body);
-}
-
-export function retireNode(level: Level, id: string) {
-  return request<void>("DELETE", `${itemPath[level]}/${id}`);
-}
-
-export function restoreNode(level: Level, id: string) {
-  return request<Node>("POST", `${itemPath[level]}/${id}/restore`);
-}
-
-export interface Stats {
-  zones: number;
-  departments: number;
-  categories: number;
-  paths: number;
-}
-
-interface TreeNode {
-  level: Level;
-  children: TreeNode[];
-}
-
-export async function getStats(): Promise<Stats> {
-  const data = await request<{ items: TreeNode[] }>("GET", `${V1}/taxonomy/tree`);
-  const stats: Stats = { zones: 0, departments: 0, categories: 0, paths: 0 };
-  for (const zone of data.items) {
-    stats.zones += 1;
-    for (const dept of zone.children) {
-      stats.departments += 1;
-      for (const cat of dept.children) {
-        stats.categories += 1;
-        stats.paths += cat.children.length; // subcategories = unique classification paths
-      }
-    }
-  }
-  return stats;
-}

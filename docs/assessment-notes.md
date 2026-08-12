@@ -1,43 +1,16 @@
 # Assessment notes
 
-## Domain interpretation
+## Location → zones
 
-The hierarchy `Zone / Department / Category / SubCategory` is treated as a unique
-merchandise classification leaf (SKU-class identity). Each full path is uniquely
-addressable, and every node also has a stable UUID. No separate Product/SKU catalog
-is built in this scope.
+The PDF model uses **Location** as the top hierarchy level. This package maps that concept to **`zones`** in the database, REST API (`/api/v1/zones`), and UI. The seed CSV may still use a `Location` column; `scripts/seed.py` maps it into the `zones` table.
 
-## PDF `Location` → model `zones`
+## PDF wrapped subcategory names
 
-The source PDF column is named `Location` with values `Center` / `Perimeter`. These are
-merchandising areas/zones. They are modeled as the `zones` table (`zone_id`,
-`/api/v1/zones`, UI label **Zone**). The seed CSV keeps the PDF column header
-`Location`; `scripts/seed.py` maps that column into `zones`.
+Two subcategory names wrap across lines in the PDF source. The seed CSV stores each as a single logical name. `seed_helpers.join_wrapped_name` rejoins those wraps so seed counts and uniqueness stay correct.
 
-## Seed reconstruction
+## Soft-delete
 
-`data/seed/taxonomy.csv` is the canonical, already-unwrapped source of truth. The
-application never parses the PDF at runtime. Two subcategory names span wrapped PDF
-lines and are preserved verbatim:
-
-- `Refrigerated English Muffins and Biscuits`
-- `Refrigerated Sweet Breakfast Baked Goods`
-
-Expected seed counts (asserted in `apps/api/tests/unit/test_seed_csv.py`):
-
-| Entity | Count |
-| --- | --- |
-| Zones | 2 |
-| Departments | 8 |
-| Categories | 25 |
-| Subcategories | 61 |
-| Unique hierarchy paths | 61 |
-
-## Soft-delete contract
-
-`is_active BOOLEAN NOT NULL DEFAULT true` on all four tables. HTTP `DELETE` sets
-`is_active=false` on the node and all descendants in one transaction (idempotent `204`).
-Foreign keys are `ON DELETE RESTRICT`; rows are never physically removed. Uniqueness
-constraints include inactive names, so recreating a retired sibling name returns `409`.
-`POST .../restore` reactivates the node only; restoring a child whose parent is still
-inactive returns `409`.
+- `DELETE` sets `is_active=false` on the target node **and all descendants** in one transaction.
+- `POST .../restore` reactivates **only** that node; restoring a child under an inactive parent returns `409`.
+- Foreign keys use `ON DELETE RESTRICT`; there is no hard purge.
+- List/tree/path endpoints are active-only by default; use `?include_inactive=true` (and the UI “Show inactive” toggle) to see retired nodes. `GET` by id still returns inactive rows.

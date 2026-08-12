@@ -1,33 +1,44 @@
-SHELL := /bin/bash
-COMPOSE := docker compose
+.PHONY: up down seed logs test test-unit test-component test-integration test-acceptance smoke perf
 
-.PHONY: up down seed logs test test-unit test-integration test-component migrate perf
+export DATABASE_URL ?= postgresql+psycopg://taxonomy:taxonomy@127.0.0.1:5432/taxonomy
+API_VENV := apps/api/.venv/bin
 
-up: ## Build and start postgres + api + web
-	$(COMPOSE) up --build -d
+up:
+	docker compose up --build -d
 
-down: ## Stop all services
-	$(COMPOSE) down
+down:
+	docker compose down
 
-migrate: ## Apply database migrations
-	$(COMPOSE) run --rm api alembic upgrade head
+seed:
+	docker compose run --rm api alembic upgrade head
+	docker compose run --rm api python /app/scripts/seed.py
 
-seed: ## Load the canonical taxonomy seed (idempotent)
-	$(COMPOSE) run --rm api python /app/scripts/seed.py
+logs:
+	docker compose logs -f
 
-logs: ## Tail service logs
-	$(COMPOSE) logs -f
+test: test-unit test-component test-integration
 
-test: test-unit test-integration ## Run backend unit + integration tests
+test-unit:
+	@if [ -x "$(API_VENV)/pytest" ]; then \
+		cd apps/api && PYTHONPATH=. .venv/bin/pytest tests/unit -v; \
+	else \
+		docker compose run --rm -e PYTHONPATH=/app api pytest /app/tests/unit -v; \
+	fi
 
-test-unit: ## Backend unit tests
-	$(COMPOSE) run --rm api python -m pytest tests/unit
+test-component:
+	npm --prefix apps/web test
 
-test-integration: ## Backend integration tests (API + Postgres)
-	$(COMPOSE) run --rm api python -m pytest tests/integration
+test-integration:
+	docker compose run --rm \
+		-e PYTHONPATH=/app \
+		-e DATABASE_URL=postgresql+psycopg://taxonomy:taxonomy@postgres:5432/taxonomy \
+		api pytest /app/tests/integration -v
 
-test-component: ## Frontend component/type checks
-	cd apps/web && npm run build
+test-acceptance:
+	npx playwright test --config=playwright.config.ts
+
+smoke:
+	@bash scripts/smoke_health.sh
 
 perf: ## Run the Locust load test headless (override HOST/USERS/RATE/TIME)
 	pip install -q -r perf/requirements.txt

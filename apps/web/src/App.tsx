@@ -1,346 +1,318 @@
-import { useCallback, useEffect, useState } from "react";
-import {
-  createNode,
-  getStats,
-  listNodes,
-  restoreNode,
-  retireNode,
-  updateNode,
-  type Level,
-  type Node,
-  type Stats,
-} from "./api/client";
+import { useEffect, useState } from "react";
+import { api, TaxonomyNode, clearStoredAuth, getStoredAuth } from "./api/client";
+import Login from "./pages/Login";
 
-const LEVELS: Level[] = ["zone", "department", "category", "subcategory"];
-const TITLES: Record<Level, string> = {
-  zone: "Zones",
-  department: "Departments",
-  category: "Categories",
-  subcategory: "Subcategories",
-};
-
-interface ColumnState {
-  nodes: Node[];
-  selectedId: string | null;
-}
-
-const emptyColumn = (): ColumnState => ({ nodes: [], selectedId: null });
+type Level = "zone" | "department" | "category" | "subcategory";
 
 export default function App() {
-  const [columns, setColumns] = useState<Record<Level, ColumnState>>({
-    zone: emptyColumn(),
-    department: emptyColumn(),
-    category: emptyColumn(),
-    subcategory: emptyColumn(),
-  });
+  const [authed, setAuthed] = useState(() => Boolean(getStoredAuth()));
+
+  if (!authed) {
+    return <Login onLoggedIn={() => setAuthed(true)} />;
+  }
+
+  return (
+    <TaxonomyApp
+      onLogout={() => {
+        clearStoredAuth();
+        setAuthed(false);
+      }}
+    />
+  );
+}
+
+function TaxonomyApp({ onLogout }: { onLogout: () => void }) {
   const [includeInactive, setIncludeInactive] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [health, setHealth] = useState<string>("checking…");
-  const [search, setSearch] = useState("");
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [zones, setZones] = useState<TaxonomyNode[]>([]);
+  const [departments, setDepartments] = useState<TaxonomyNode[]>([]);
+  const [categories, setCategories] = useState<TaxonomyNode[]>([]);
+  const [subcategories, setSubcategories] = useState<TaxonomyNode[]>([]);
+  const [selectedZone, setSelectedZone] = useState<TaxonomyNode | null>(null);
+  const [selectedDept, setSelectedDept] = useState<TaxonomyNode | null>(null);
+  const [selectedCat, setSelectedCat] = useState<TaxonomyNode | null>(null);
+  const [selectedSub, setSelectedSub] = useState<TaxonomyNode | null>(null);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
 
-  const reloadStats = useCallback(() => {
-    getStats()
-      .then(setStats)
-      .catch(() => setStats(null));
-  }, []);
+  const selected: { level: Level; node: TaxonomyNode } | null = selectedSub
+    ? { level: "subcategory", node: selectedSub }
+    : selectedCat
+      ? { level: "category", node: selectedCat }
+      : selectedDept
+        ? { level: "department", node: selectedDept }
+        : selectedZone
+          ? { level: "zone", node: selectedZone }
+          : null;
 
-  const parentIdFor = useCallback(
-    (level: Level, cols: Record<Level, ColumnState>): string | null => {
-      if (level === "zone") return null;
-      const parentLevel = LEVELS[LEVELS.indexOf(level) - 1];
-      return cols[parentLevel].selectedId;
-    },
-    []
-  );
-
-  const loadLevel = useCallback(
-    async (level: Level, cols: Record<Level, ColumnState>, inactive: boolean) => {
-      const parentId = parentIdFor(level, cols);
-      if (level !== "zone" && !parentId) return [] as Node[];
-      return listNodes(level, parentId, inactive);
-    },
-    [parentIdFor]
-  );
-
-  const refreshFrom = useCallback(
-    async (startLevel: Level, base: Record<Level, ColumnState>, inactive: boolean) => {
-      const next = { ...base };
-      let start = LEVELS.indexOf(startLevel);
-      for (let i = start; i < LEVELS.length; i++) {
-        const level = LEVELS[i];
-        try {
-          const nodes = await loadLevel(level, next, inactive);
-          const keepSelected = nodes.some((n) => n.id === next[level].selectedId)
-            ? next[level].selectedId
-            : null;
-          next[level] = { nodes, selectedId: keepSelected };
-        } catch (e) {
-          setError((e as Error).message);
-          next[level] = emptyColumn();
-        }
-        if (!next[level].selectedId) {
-          for (let j = i + 1; j < LEVELS.length; j++) next[LEVELS[j]] = emptyColumn();
-          break;
-        }
-      }
-      setColumns(next);
-    },
-    [loadLevel]
-  );
+  async function refreshZones() {
+    const res = await api.listZones(includeInactive);
+    setZones(res.items);
+  }
 
   useEffect(() => {
-    fetch("/health")
-      .then((r) => (r.ok ? "healthy" : "down"))
-      .then(setHealth)
-      .catch(() => setHealth("down"));
-    refreshFrom("zone", columns, includeInactive);
-    reloadStats();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    refreshFrom("zone", columns, includeInactive);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    refreshZones().catch((e: Error) => setError(e.message));
   }, [includeInactive]);
 
-  const select = (level: Level, id: string) => {
-    const next = { ...columns, [level]: { ...columns[level], selectedId: id } };
-    setError(null);
-    refreshFrom(level, next, includeInactive);
-  };
+  useEffect(() => {
+    if (!selectedZone) {
+      setDepartments([]);
+      return;
+    }
+    api
+      .listDepartments(selectedZone.id, includeInactive)
+      .then((r) => setDepartments(r.items))
+      .catch((e: Error) => setError(e.message));
+  }, [selectedZone, includeInactive]);
 
-  const handleCreate = async (level: Level, name: string) => {
+  useEffect(() => {
+    if (!selectedDept) {
+      setCategories([]);
+      return;
+    }
+    api
+      .listCategories(selectedDept.id, includeInactive)
+      .then((r) => setCategories(r.items))
+      .catch((e: Error) => setError(e.message));
+  }, [selectedDept, includeInactive]);
+
+  useEffect(() => {
+    if (!selectedCat) {
+      setSubcategories([]);
+      return;
+    }
+    api
+      .listSubcategories(selectedCat.id, includeInactive)
+      .then((r) => setSubcategories(r.items))
+      .catch((e: Error) => setError(e.message));
+  }, [selectedCat, includeInactive]);
+
+  useEffect(() => {
+    if (selected) {
+      setName(selected.node.name);
+      setDescription(selected.node.description ?? "");
+    }
+  }, [selected?.node.id]);
+
+  async function onCreate(level: Level) {
     setError(null);
     try {
-      await createNode(level, parentIdFor(level, columns), { name });
-      await refreshFrom(level, columns, includeInactive);
-      reloadStats();
+      const payload = { name, description: description || undefined };
+      if (level === "zone") await api.createZone(payload);
+      if (level === "department" && selectedZone)
+        await api.createDepartment(selectedZone.id, payload);
+      if (level === "category" && selectedDept)
+        await api.createCategory(selectedDept.id, payload);
+      if (level === "subcategory" && selectedCat)
+        await api.createSubcategory(selectedCat.id, payload);
+      setName("");
+      setDescription("");
+      await refreshZones();
+      if (selectedZone) {
+        const d = await api.listDepartments(selectedZone.id, includeInactive);
+        setDepartments(d.items);
+      }
+      if (selectedDept) {
+        const c = await api.listCategories(selectedDept.id, includeInactive);
+        setCategories(c.items);
+      }
+      if (selectedCat) {
+        const s = await api.listSubcategories(selectedCat.id, includeInactive);
+        setSubcategories(s.items);
+      }
     } catch (e) {
       setError((e as Error).message);
     }
-  };
+  }
 
-  const handleRename = async (level: Level, node: Node) => {
-    const name = window.prompt(`Rename ${level}`, node.name);
-    if (!name || name === node.name) return;
+  async function onSave() {
+    if (!selected) return;
     setError(null);
     try {
-      await updateNode(level, node.id, { name });
-      await refreshFrom(level, columns, includeInactive);
+      const payload = { name, description: description || undefined };
+      if (selected.level === "zone") await api.updateZone(selected.node.id, payload);
+      if (selected.level === "department")
+        await api.updateDepartment(selected.node.id, payload);
+      if (selected.level === "category")
+        await api.updateCategory(selected.node.id, payload);
+      if (selected.level === "subcategory")
+        await api.updateSubcategory(selected.node.id, payload);
+      await refreshZones();
     } catch (e) {
       setError((e as Error).message);
     }
-  };
+  }
 
-  const handleRetire = async (level: Level, node: Node) => {
-    if (!window.confirm(`Retire "${node.name}" and all its descendants?`)) return;
+  async function onRetire() {
+    if (!selected) return;
+    if (
+      !window.confirm(
+        `Retire ${selected.node.name}? This node and all descendants will be deactivated.`,
+      )
+    ) {
+      return;
+    }
     setError(null);
     try {
-      await retireNode(level, node.id);
-      await refreshFrom(level, columns, includeInactive);
-      reloadStats();
+      if (selected.level === "zone") await api.deleteZone(selected.node.id);
+      if (selected.level === "department") await api.deleteDepartment(selected.node.id);
+      if (selected.level === "category") await api.deleteCategory(selected.node.id);
+      if (selected.level === "subcategory") await api.deleteSubcategory(selected.node.id);
+      setSelectedSub(null);
+      if (selected.level === "zone") setSelectedZone(null);
+      if (selected.level === "department") setSelectedDept(null);
+      if (selected.level === "category") setSelectedCat(null);
+      await refreshZones();
     } catch (e) {
       setError((e as Error).message);
     }
-  };
+  }
 
-  const handleRestore = async (level: Level, node: Node) => {
+  async function onRestore() {
+    if (!selected) return;
     setError(null);
     try {
-      await restoreNode(level, node.id);
-      await refreshFrom(level, columns, includeInactive);
-      reloadStats();
+      if (selected.level === "zone") await api.restoreZone(selected.node.id);
+      if (selected.level === "department") await api.restoreDepartment(selected.node.id);
+      if (selected.level === "category") await api.restoreCategory(selected.node.id);
+      if (selected.level === "subcategory") await api.restoreSubcategory(selected.node.id);
+      await refreshZones();
     } catch (e) {
       setError((e as Error).message);
     }
-  };
+  }
 
-  const healthy = health === "healthy";
-
-  return (
-    <div className="app">
-      <div className="topbar">
-        <div className="brand">
-          <div className="brand-logo">RT</div>
-          <div>
-            <h1>Retail Taxonomy Console</h1>
-            <p>Merchandise classification workspace</p>
-          </div>
-        </div>
-        <span className={`status-pill ${healthy ? "" : "down"}`}>
-          <span className="status-dot" />
-          API {health}
-        </span>
-      </div>
-
-      <div className="toolbar">
-        <div className="search">
-          <SearchIcon />
-          <input
-            value={search}
-            placeholder="Search zones, departments, categories…"
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <label className="toggle">
-          <input
-            type="checkbox"
-            checked={includeInactive}
-            onChange={(e) => setIncludeInactive(e.target.checked)}
-          />
-          <span className="switch" />
-          Show inactive
-        </label>
-        <div className="stats">
-          <div className="stat"><b>{stats ? stats.zones : "—"}</b><span>Zones</span></div>
-          <div className="stat"><b>{stats ? stats.departments : "—"}</b><span>Depts</span></div>
-          <div className="stat"><b>{stats ? stats.categories : "—"}</b><span>Categories</span></div>
-          <div className="stat"><b>{stats ? stats.paths : "—"}</b><span>Paths</span></div>
-        </div>
-      </div>
-
-      {error && <div className="error">{error}</div>}
-
-      <div className="columns">
-        {LEVELS.map((level, idx) => {
-          const parentId = parentIdFor(level, columns);
-          const enabled = level === "zone" || !!parentId;
-          const selected = columns[level].nodes.find((n) => n.id === columns[level].selectedId) || null;
-          return (
-            <Column
-              key={level}
-              level={level}
-              title={TITLES[level]}
-              enabled={enabled}
-              hasChildren={level !== "subcategory"}
-              nodes={columns[level].nodes}
-              search={search}
-              selectedId={columns[level].selectedId}
-              onSelect={(id) => select(level, id)}
-              onCreate={(name) => handleCreate(level, name)}
-              onRename={(n) => handleRename(level, n)}
-              onRetire={(n) => handleRetire(level, n)}
-              onRestore={(n) => handleRestore(level, n)}
-              selected={selected}
-              placeholder={idx === 0 ? "New zone…" : `New ${level}…`}
-            />
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function SearchIcon() {
-  return (
-    <svg
-      className="search-icon"
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-    >
-      <circle cx="11" cy="11" r="7" />
-      <path d="m21 21-4.3-4.3" />
-    </svg>
-  );
-}
-
-interface ColumnProps {
-  level: Level;
-  title: string;
-  enabled: boolean;
-  hasChildren: boolean;
-  nodes: Node[];
-  search: string;
-  selectedId: string | null;
-  selected: Node | null;
-  placeholder: string;
-  onSelect: (id: string) => void;
-  onCreate: (name: string) => void;
-  onRename: (n: Node) => void;
-  onRetire: (n: Node) => void;
-  onRestore: (n: Node) => void;
-}
-
-function Column(props: ColumnProps) {
-  const [draft, setDraft] = useState("");
-
-  if (!props.enabled) {
+  function renderList(
+    title: string,
+    items: TaxonomyNode[],
+    onSelect: (n: TaxonomyNode) => void,
+    selectedId?: string,
+  ) {
     return (
-      <div className="column">
-        <h2>{props.title}</h2>
-        <div className="empty">Select a parent to view.</div>
-      </div>
+      <section>
+        <h2>{title}</h2>
+        {items.length === 0 ? <p>Empty</p> : null}
+        <ul>
+          {items.map((item) => (
+            <li key={item.id}>
+              <button
+                type="button"
+                aria-pressed={selectedId === item.id}
+                onClick={() => onSelect(item)}
+              >
+                {item.name}
+                {!item.is_active ? " (inactive)" : ""}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
     );
   }
 
-  const submit = () => {
-    const name = draft.trim();
-    if (!name) return;
-    props.onCreate(name);
-    setDraft("");
-  };
-
-  const query = props.search.trim().toLowerCase();
-  const visible = query
-    ? props.nodes.filter((n) => n.name.toLowerCase().includes(query))
-    : props.nodes;
-
   return (
-    <div className="column">
-      <h2>
-        {props.title}
-        <span className="count">{visible.length}</span>
-      </h2>
-      <ul>
-        {props.nodes.length === 0 && <li className="empty">No items yet.</li>}
-        {props.nodes.length > 0 && visible.length === 0 && (
-          <li className="empty">No matches.</li>
-        )}
-        {visible.map((n) => (
-          <li
-            key={n.id}
-            className={`${n.id === props.selectedId ? "selected" : ""} ${n.is_active ? "" : "inactive"}`}
-            onClick={() => props.onSelect(n.id)}
-          >
-            <span className="node-name">{n.name}</span>
-            {!n.is_active && <span className="badge">retired</span>}
-            {props.hasChildren && n.is_active && <span className="chevron">›</span>}
-          </li>
-        ))}
-      </ul>
-      {props.selected && (
-        <div className="actions">
-          <button className="btn-ghost" onClick={() => props.onRename(props.selected!)}>
-            Edit
-          </button>
-          {props.selected.is_active ? (
-            <button className="btn-danger" onClick={() => props.onRetire(props.selected!)}>
-              Retire
-            </button>
-          ) : (
-            <button className="btn-restore" onClick={() => props.onRestore(props.selected!)}>
-              Restore
-            </button>
-          )}
-        </div>
-      )}
-      <div className="add-row">
+    <main style={{ fontFamily: "system-ui", margin: "1.5rem" }}>
+      <h1>Retail Taxonomy</h1>
+      <button type="button" onClick={onLogout}>
+        Sign out
+      </button>
+      <label>
         <input
-          value={draft}
-          placeholder={props.placeholder}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-        />
-        <button className="btn-primary" style={{ width: "100%" }} onClick={submit}>
-          Add
-        </button>
+          type="checkbox"
+          checked={includeInactive}
+          onChange={(e) => setIncludeInactive(e.target.checked)}
+        />{" "}
+        Show inactive
+      </label>
+      {error ? <p role="alert">{error}</p> : null}
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem" }}>
+        {renderList(
+          "Zones",
+          zones,
+          (n) => {
+            setSelectedZone(n);
+            setSelectedDept(null);
+            setSelectedCat(null);
+            setSelectedSub(null);
+          },
+          selectedZone?.id,
+        )}
+        {renderList(
+          "Departments",
+          departments,
+          (n) => {
+            setSelectedDept(n);
+            setSelectedCat(null);
+            setSelectedSub(null);
+          },
+          selectedDept?.id,
+        )}
+        {renderList(
+          "Categories",
+          categories,
+          (n) => {
+            setSelectedCat(n);
+            setSelectedSub(null);
+          },
+          selectedCat?.id,
+        )}
+        {renderList("Subcategories", subcategories, setSelectedSub, selectedSub?.id)}
       </div>
-    </div>
+
+      <section style={{ marginTop: "1.5rem" }}>
+        <h2>Detail</h2>
+        <p>
+          Selected: {selected ? `${selected.level} / ${selected.node.name}` : "none"}
+        </p>
+        <label>
+          Name{" "}
+          <input value={name} onChange={(e) => setName(e.target.value)} />
+        </label>{" "}
+        <label>
+          Description{" "}
+          <input value={description} onChange={(e) => setDescription(e.target.value)} />
+        </label>
+        <div style={{ marginTop: "0.75rem", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <button type="button" onClick={() => onCreate("zone")}>
+            Create zone
+          </button>
+          <button
+            type="button"
+            disabled={!selectedZone}
+            onClick={() => onCreate("department")}
+          >
+            Create department
+          </button>
+          <button
+            type="button"
+            disabled={!selectedDept}
+            onClick={() => onCreate("category")}
+          >
+            Create category
+          </button>
+          <button
+            type="button"
+            disabled={!selectedCat}
+            onClick={() => onCreate("subcategory")}
+          >
+            Create subcategory
+          </button>
+          <button type="button" disabled={!selected} onClick={onSave}>
+            Save
+          </button>
+          <button type="button" disabled={!selected?.node.is_active} onClick={onRetire}>
+            Retire
+          </button>
+          <button
+            type="button"
+            disabled={!selected || selected.node.is_active}
+            onClick={onRestore}
+          >
+            Restore
+          </button>
+        </div>
+      </section>
+    </main>
   );
 }

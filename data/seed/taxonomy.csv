@@ -1,62 +1,62 @@
 Location,Department,Category,SubCategory
-Perimeter,Produce,Fresh Fruit,Apples
-Perimeter,Produce,Fresh Fruit,Bananas
-Perimeter,Produce,Fresh Fruit,Berries
-Perimeter,Produce,Fresh Vegetables,Leafy Greens
-Perimeter,Produce,Fresh Vegetables,Root Vegetables
-Perimeter,Produce,Fresh Vegetables,Peppers
-Perimeter,Produce,Packaged Produce,Salad Kits
-Perimeter,Produce,Packaged Produce,Cut Fruit
-Perimeter,Bakery,Bread,Sandwich Bread
-Perimeter,Bakery,Bread,Artisan Loaves
-Perimeter,Bakery,Breakfast Bakery,Refrigerated English Muffins and Biscuits
-Perimeter,Bakery,Breakfast Bakery,Refrigerated Sweet Breakfast Baked Goods
-Perimeter,Bakery,Breakfast Bakery,Bagels
-Perimeter,Deli,Sliced Meats,Ham
-Perimeter,Deli,Sliced Meats,Turkey
-Perimeter,Deli,Cheese,Sliced Cheese
-Perimeter,Deli,Cheese,Specialty Cheese
-Perimeter,Deli,Prepared Foods,Sandwiches
-Perimeter,Deli,Prepared Foods,Salads
-Perimeter,Meat & Seafood,Fresh Meat,Beef
-Perimeter,Meat & Seafood,Fresh Meat,Pork
-Perimeter,Meat & Seafood,Fresh Meat,Chicken
-Perimeter,Meat & Seafood,Seafood,Fish
-Perimeter,Meat & Seafood,Seafood,Shellfish
-Perimeter,Dairy,Milk,Whole Milk
-Perimeter,Dairy,Milk,Skim Milk
-Perimeter,Dairy,Milk,Plant Based Milk
-Perimeter,Dairy,Yogurt,Greek Yogurt
-Perimeter,Dairy,Yogurt,Regular Yogurt
-Perimeter,Dairy,Eggs,Large Eggs
-Perimeter,Dairy,Eggs,Organic Eggs
-Center,Grocery,Canned Goods,Canned Vegetables
-Center,Grocery,Canned Goods,Canned Soup
-Center,Grocery,Canned Goods,Canned Beans
-Center,Grocery,Pasta & Rice,Dry Pasta
-Center,Grocery,Pasta & Rice,White Rice
-Center,Grocery,Pasta & Rice,Brown Rice
-Center,Grocery,Snacks,Chips
-Center,Grocery,Snacks,Crackers
-Center,Grocery,Snacks,Cookies
-Center,Grocery,Baking,Flour
-Center,Grocery,Baking,Sugar
-Center,Grocery,Baking,Baking Mixes
-Center,Grocery,Condiments,Ketchup
-Center,Grocery,Condiments,Mustard
-Center,Frozen,Frozen Meals,Frozen Pizza
-Center,Frozen,Frozen Meals,Frozen Dinners
-Center,Frozen,Frozen Vegetables,Frozen Peas
-Center,Frozen,Frozen Vegetables,Frozen Corn
-Center,Frozen,Ice Cream,Tubs
-Center,Frozen,Ice Cream,Novelties
-Center,Beverages,Water,Still Water
-Center,Beverages,Water,Sparkling Water
-Center,Beverages,Soft Drinks,Cola
-Center,Beverages,Soft Drinks,Lemon Lime
-Center,Beverages,Soft Drinks,Root Beer
-Center,Beverages,Coffee & Tea,Ground Coffee
-Center,Beverages,Coffee & Tea,Tea Bags
-Center,Beverages,Coffee & Tea,Coffee Pods
-Center,Beverages,Juice,Orange Juice
-Center,Beverages,Juice,Apple Juice
+Perimeter,Bakery,Bakery Bread,Bagels
+Perimeter,Bakery,Bakery Bread,Baking or Breading Products
+Perimeter,Bakery,Bakery Bread,English Muffins or Biscuits
+Perimeter,Bakery,Bakery Bread,Flatbreads
+Perimeter,Bakery,In Store Bakery,Breakfast Cake or Sweet Roll
+Perimeter,Bakery,In Store Bakery,Cakes
+Perimeter,Bakery,In Store Bakery,Pies
+Perimeter,Bakery,In Store Bakery,Seasonal
+Center,Dairy,Cheese,Cheese Sauce
+Center,Dairy,Cheese,Specialty Cheese
+Center,Dairy,Cream or Creamer,Dairy Alternative Creamer
+Center,Dairy,Cream or Creamer,Whipping Creams
+Center,Dairy,Cultured,Cottage Cheese
+Center,Dairy,Refrigerated Baking,Refrigerated Breads
+Center,Dairy,Refrigerated Baking,Refrigerated English Muffins and Biscuits
+Center,Dairy,Refrigerated Baking,Refrigerated Hand Held Sweets
+Center,Dairy,Refrigerated Baking,Refrigerated Pie Crust
+Center,Dairy,Refrigerated Baking,Refrigerated Sweet Breakfast Baked Goods
+Perimeter,Deli and Foodservice,Self Service Deli Cold,Beverages
+Perimeter,Deli and Foodservice,Service Deli,Cheese All Other
+Perimeter,Deli and Foodservice,Service Deli,Cheese American
+Perimeter,Floral,Bouquets and Cut Flowers,Bouquets and Cut Flowers
+Perimeter,Floral,Gifts,Gifts
+Perimeter,Floral,Plants,Plants
+Center,Frozen,Frozen Bake,Bread or Dough Products Frozen
+Center,Frozen,Frozen Bake,Breakfast Cake or Sweet Roll Frozen
+Center,Frozen,Frozen Breakfast,Frozen Breakfast Entrees
+Center,Frozen,Frozen Breakfast,Frozen Breakfast Sandwich
+Center,Frozen,Frozen Breakfast,Frozen Egg Substitutes
+Center,Frozen,Frozen Breakfast,Frozen Syrup Carriers
+Center,Frozen,Frozen Desserts or Fruit and Toppings,Pies Frozen
+Center,Frozen,Frozen Juice,Frozen Apple Juice
+Center,Frozen,Frozen Juice,Frozen Fruit Drink Mixers
+Center,Frozen,Frozen Juice,Frozen Fruit Juice All Other
+Center,GM,Audio Video,Audio
+Center,GM,Audio Video,Video DVD
+Center,GM,Audio Video,Video VHS
+Center,GM,Housewares,Bedding
+Center,GM,Housewares,Candles
+Center,GM,Housewares,Collectibles and Gifts
+Center,GM,Housewares,Flashlights
+Center,GM,Housewares,Frames
+Center,GM,Insect and Rodent,Indoor Repellants or Traps
+Center,GM,Insect and Rodent,Outdoor Repellants or Traps
+Center,GM,Kitchen Accessories,Kitchen Accessories
+Center,GM,Laundry,Bleach Liquid
+Center,GM,Laundry,Bleach Powder
+Center,GM,Laundry,Fabric Softener Liquid
+Center,GM,Laundry,Fabric Softener Sheets
+Center,Grocery,Baking Ingredients,Dry or Canned Milk
+Center,Grocery,Baking Ingredients,Food Coloring
+Center,Grocery,Spices,Salt Cooking or Edible or Seasoned
+Center,Grocery,Spices,Salt Substitute
+Center,Grocery,Spices,Seasoning Dry
+Center,Grocery,Stuffing Products,Stuffing Products
+Perimeter,Seafood,Frozen Shellfish,Frozen Shellfish
+Perimeter,Seafood,Other Seafood,All Other Seafood
+Perimeter,Seafood,Other Seafood,Prepared Seafood Entrees
+Perimeter,Seafood,Other Seafood,Seafood Salads
+Perimeter,Seafood,Other Seafood,Smoked Fish
+Perimeter,Seafood,Other Seafood,Seafood Breading Sauces Dips Exercise2 (SHIP): 1. Demonstrate test-driven development practices through code written in Exercise1 i.e. unit/component/integration/acceptance tests that can be run for a change in source code 2. Build and Deploy your application outside of your IDE with automated scripts (Imagine someone who has access to source code and has to build and deploy your application without talking to you - and doesn't have all the customized settings of your IDE). If you cannot write automated script, demonstrate the steps you would take , show us manually how you would deploy Exercise3 (RUN): 1. Once the app (front-end, API/middle tier, back-end) that you built in Exercise1 and Exercise2 is running, implement a logging framework and make changes to the source code above. 2. Implement an authentication mechanism for the UI (username/password) and API (Basic Auth) - Bonus points if you can demonstrate OpenIDConnect, JWT, OAuth2 3. How would you check the HEALTH of the application by being proactive than reactive ? Feel free to use monitoring tools/frameworks available out-of-box (you are expected to set them up yourself)

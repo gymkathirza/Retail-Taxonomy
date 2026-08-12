@@ -4,6 +4,8 @@
 
 **Reading order:** Part A is the binding coding-test plan. Part B is optional post-assessment evolution — keep it out of the public repo README (one-paragraph pointer at most).
 
+**Implementation:** TDD milestone plan → [`Implementation-Plan-TDD-Milestones.md`](./Implementation-Plan-TDD-Milestones.md). Delivery branch `implement-assessment-mvp` → PR into `main` (**merge without squash** so BUILD/SHIP/RUN history stays grader-visible).
+
 ---
 
 # PLAN

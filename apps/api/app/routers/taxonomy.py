@@ -1,53 +1,95 @@
+from __future__ import annotations
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
-from ..db import get_db
-from ..models import Category, Department, Subcategory, Zone
+from app.db import get_db
+from app.models import Category, Department, Subcategory, Zone
+from app.schemas import TaxonomyPath, TaxonomyPathsResponse, TaxonomyTreeResponse
 
 router = APIRouter(prefix="/api/v1/taxonomy", tags=["taxonomy"])
 
 
-def _active(query, model, include_inactive: bool):
-    return query if include_inactive else query.where(model.is_active.is_(True))
+@router.get("/tree", response_model=TaxonomyTreeResponse)
+def taxonomy_tree(
+    include_inactive: bool = Query(False),
+    db: Session = Depends(get_db),
+) -> dict:
+    stmt = (
+        select(Zone)
+        .options(
+            selectinload(Zone.departments)
+            .selectinload(Department.categories)
+            .selectinload(Category.subcategories)
+        )
+        .order_by(Zone.name)
+    )
+    if not include_inactive:
+        stmt = stmt.where(Zone.is_active.is_(True))
+    zones = list(db.scalars(stmt).unique())
+
+    items = []
+    for zone in zones:
+        departments = []
+        for dept in sorted(zone.departments, key=lambda d: d.name):
+            if not include_inactive and not dept.is_active:
+                continue
+            categories = []
+            for cat in sorted(dept.categories, key=lambda c: c.name):
+                if not include_inactive and not cat.is_active:
+                    continue
+                subs = [
+                    {
+                        "id": s.id,
+                        "name": s.name,
+                        "description": s.description,
+                        "is_active": s.is_active,
+                    }
+                    for s in sorted(cat.subcategories, key=lambda x: x.name)
+                    if include_inactive or s.is_active
+                ]
+                categories.append(
+                    {
+                        "id": cat.id,
+                        "name": cat.name,
+                        "description": cat.description,
+                        "is_active": cat.is_active,
+                        "subcategories": subs,
+                    }
+                )
+            departments.append(
+                {
+                    "id": dept.id,
+                    "name": dept.name,
+                    "description": dept.description,
+                    "is_active": dept.is_active,
+                    "categories": categories,
+                }
+            )
+        items.append(
+            {
+                "id": zone.id,
+                "name": zone.name,
+                "description": zone.description,
+                "is_active": zone.is_active,
+                "departments": departments,
+            }
+        )
+    return {"items": items}
 
 
-@router.get("/tree")
-def get_tree(include_inactive: bool = Query(False), db: Session = Depends(get_db)):
-    zones = db.scalars(_active(select(Zone), Zone, include_inactive).order_by(Zone.name)).all()
-    tree = []
-    for z in zones:
-        depts = db.scalars(
-            _active(select(Department).where(Department.zone_id == z.id), Department, include_inactive).order_by(Department.name)
-        ).all()
-        z_node = {"id": str(z.id), "name": z.name, "is_active": z.is_active, "level": "zone", "children": []}
-        for d in depts:
-            cats = db.scalars(
-                _active(select(Category).where(Category.department_id == d.id), Category, include_inactive).order_by(Category.name)
-            ).all()
-            d_node = {"id": str(d.id), "name": d.name, "is_active": d.is_active, "level": "department", "children": []}
-            for c in cats:
-                subs = db.scalars(
-                    _active(select(Subcategory).where(Subcategory.category_id == c.id), Subcategory, include_inactive).order_by(Subcategory.name)
-                ).all()
-                c_node = {"id": str(c.id), "name": c.name, "is_active": c.is_active, "level": "category", "children": []}
-                for s in subs:
-                    c_node["children"].append(
-                        {"id": str(s.id), "name": s.name, "is_active": s.is_active, "level": "subcategory", "children": []}
-                    )
-                d_node["children"].append(c_node)
-            z_node["children"].append(d_node)
-        tree.append(z_node)
-    return {"items": tree}
-
-
-@router.get("/paths")
-def get_paths(include_inactive: bool = Query(False), db: Session = Depends(get_db)):
+@router.get("/paths", response_model=TaxonomyPathsResponse)
+def taxonomy_paths(
+    include_inactive: bool = Query(False),
+    db: Session = Depends(get_db),
+) -> dict:
     stmt = (
         select(Subcategory, Category, Department, Zone)
-        .join(Category, Subcategory.category_id == Category.id)
-        .join(Department, Category.department_id == Department.id)
-        .join(Zone, Department.zone_id == Zone.id)
+        .join(Category, Category.id == Subcategory.category_id)
+        .join(Department, Department.id == Category.department_id)
+        .join(Zone, Zone.id == Department.zone_id)
+        .order_by(Zone.name, Department.name, Category.name, Subcategory.name)
     )
     if not include_inactive:
         stmt = stmt.where(
@@ -56,17 +98,17 @@ def get_paths(include_inactive: bool = Query(False), db: Session = Depends(get_d
             Department.is_active.is_(True),
             Zone.is_active.is_(True),
         )
-    rows = db.execute(stmt.order_by(Zone.name, Department.name, Category.name, Subcategory.name)).all()
+    rows = db.execute(stmt).all()
     items = [
-        {
-            "subcategory_id": str(s.id),
-            "zone": z.name,
-            "department": d.name,
-            "category": c.name,
-            "subcategory": s.name,
-            "full_path": f"{z.name} > {d.name} > {c.name} > {s.name}",
-            "is_active": s.is_active,
-        }
-        for s, c, d, z in rows
+        TaxonomyPath(
+            subcategory_id=sub.id,
+            zone=zone.name,
+            department=dept.name,
+            category=cat.name,
+            subcategory=sub.name,
+            full_path=f"{zone.name} > {dept.name} > {cat.name} > {sub.name}",
+            is_active=sub.is_active,
+        )
+        for sub, cat, dept, zone in rows
     ]
     return {"items": items}

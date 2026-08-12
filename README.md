@@ -1,106 +1,78 @@
 # Retail Taxonomy Operations Platform
 
-A four-level retail merchandise taxonomy (**Zone → Department → Category → SubCategory**)
-with a FastAPI + PostgreSQL backend and a React + TypeScript console. Implements the
-**BUILD** scope of the assessment plan: relational schema, seed data, unauthenticated
-REST CRUD with soft-delete/restore, and a web UI that performs all operations through
-the API.
+Public assessment package for the Full Stack coding test (React + TypeScript + FastAPI + PostgreSQL 16).
 
-See [`Plan version 1/Retail-Taxonomy-Assessment-Aligned-Proposal.md`](Plan%20version%201/Retail-Taxonomy-Assessment-Aligned-Proposal.md)
-for the full plan (BUILD / SHIP / RUN) and [`docs/assessment-notes.md`](docs/assessment-notes.md)
-for domain mapping notes.
+Part A only: zones hierarchy, soft-delete CRUD, Compose stranger runbook, Basic Auth (RUN), health + Prometheus/Grafana.
 
-## Stack
-
-| Piece | Version |
-| --- | --- |
-| Python | 3.12 |
-| Node | 20 LTS |
-| PostgreSQL | 16 |
-| API | FastAPI + SQLAlchemy + Alembic |
-| Web | React + TypeScript + Vite |
-
-Ports: UI `5173`, API `8000`, Postgres `5432`.
-
-## Quick start (Docker)
-
-Prerequisites: Docker Engine + the Docker Compose plugin (`docker compose version`) and `make`.
+## Stranger quick start (Docker)
 
 ```bash
-git clone https://github.com/gymkathirza/Retail-Taxonomy.git
+git clone <public-repo-url>
 cd Retail-Taxonomy
 cp .env.example .env
-make up            # build + start postgres, api, web
-make migrate       # apply Alembic migrations
-make seed          # load data/seed/taxonomy.csv (2 / 8 / 25 / 61)
-make test          # backend unit + integration tests
-# Open the UI and check the API:
-#   UI:  http://localhost:5173
-#   API: http://localhost:8000/docs   (health: /health, /health/ready)
+make up          # docker compose up --build -d
+make seed
+make test        # unit + component + integration
+npm install
+npx playwright install --with-deps chromium
+make test-acceptance
+open http://localhost:5173
+curl -sS http://localhost:8000/health
+curl -sS http://localhost:8000/health/ready
+make smoke
 ```
 
-Stop everything with `make down`.
+| Surface | URL |
+|---|---|
+| UI | http://localhost:5173 |
+| API / OpenAPI | http://localhost:8000 / http://localhost:8000/openapi.json |
+| Prometheus | http://localhost:9090 |
+| Grafana | http://localhost:3000 (admin / admin unless overridden) |
 
-## Local development (no Docker)
+**Demo login (after RUN auth):** username `admin`, password `password` (from `.env.example`).
 
-```bash
-git clone https://github.com/gymkathirza/Retail-Taxonomy.git
-cd Retail-Taxonomy
-```
+## Makefile targets
+
+| Target | Purpose |
+|---|---|
+| `make up` | Build and start Compose stack |
+| `make down` | Stop Compose |
+| `make seed` | Alembic migrate + idempotent CSV seed |
+| `make logs` | Follow Compose logs |
+| `make test` | Unit + component + integration |
+| `make test-unit` | pytest unit helpers |
+| `make test-component` | Vitest + Testing Library |
+| `make test-integration` | API + Postgres 16 in Compose |
+| `make test-acceptance` | Playwright browse→CRUD→retire→restore |
+| `make smoke` | Curl `/health` and `/health/ready` without credentials |
+| `make perf` | Locust load test (override `HOST/USERS/RATE/TIME`) |
+
+## Hierarchy model
+
+PDF **Location** → DB/API/UI **`zones`**. Levels: Zone → Department → Category → Subcategory.
+
+Soft-delete: `DELETE` retires a node and descendants (`is_active=false`); `POST .../restore` restores that node only. See `docs/assessment-notes.md`.
+
+## Appendix: run without Docker
 
 1. Install Python 3.12, Node 20, and PostgreSQL 16.
-2. Create the role/database from `.env.example`:
-   ```bash
-   createuser taxonomy --login --pwprompt   # password: taxonomy
-   createdb -O taxonomy taxonomy
-   ```
-3. Backend:
-   ```bash
-   python3.12 -m venv .venv && source .venv/bin/activate
-   pip install -r apps/api/requirements.txt
-   export DATABASE_URL=postgresql+psycopg://taxonomy:taxonomy@localhost:5432/taxonomy
-   (cd apps/api && alembic upgrade head)
-   python scripts/seed.py
-   (cd apps/api && uvicorn app.main:app --reload --port 8000)
-   ```
-4. Frontend (separate shell):
-   ```bash
-   cd apps/web && npm install && npm run dev   # Vite on :5173, proxies /api -> :8000
-   ```
-
-## REST API
-
-Base path `/api/v1`. OpenAPI at `/openapi.json`, interactive docs at `/docs`.
-
-- Zones: `GET/POST /zones`, `GET/PUT/DELETE /zones/{id}`, `POST /zones/{id}/restore`
-- Departments: `GET/POST /zones/{zone_id}/departments`, `GET/PUT/DELETE /departments/{id}`, `POST /departments/{id}/restore`
-- Categories: `GET/POST /departments/{department_id}/categories`, `GET/PUT/DELETE /categories/{id}`, `POST /categories/{id}/restore`
-- Subcategories: `GET/POST /categories/{category_id}/subcategories`, `GET/PUT/DELETE /subcategories/{id}`, `POST /subcategories/{id}/restore`
-- Tree/paths: `GET /taxonomy/tree`, `GET /taxonomy/paths`
-- Health: `GET /health`, `GET /health/ready`
-
-Behavior: `DELETE` soft-deletes the node **and all descendants** (idempotent `204`);
-lists/tree/paths are active-only unless `?include_inactive=true`; `GET` by id returns
-inactive rows; duplicate sibling names return `409`; restoring a child whose parent is
-inactive returns `409`. Errors use `application/problem+json` (RFC 7807).
-
-## Tests
-
-```bash
-# with Docker:
-make test
-# locally (venv active, DATABASE_URL set, DB migrated):
-cd apps/api && python -m pytest
-# frontend type-check + build:
-cd apps/web && npm run build
-```
+2. Create DB/user matching `.env.example` (`taxonomy` / `taxonomy` / `taxonomy`).
+3. `cp .env.example .env` and set host `DATABASE_URL` to `postgresql+psycopg://taxonomy:taxonomy@localhost:5432/taxonomy`.
+4. `python3.12 -m venv apps/api/.venv && source apps/api/.venv/bin/activate`
+5. `pip install -r apps/api/requirements.txt`
+6. `cd apps/api && alembic upgrade head`
+7. `TAXONOMY_SEED_CSV=../../data/seed/taxonomy.csv PYTHONPATH=. python ../../scripts/seed.py`
+8. From `apps/api`: `uvicorn app.main:app --reload --port 8000`
+9. From `apps/web`: `npm install && npm run dev` (Vite on `5173`, proxies `/api` → `8000`)
 
 ## Performance & load testing
 
 A [Locust](https://locust.io/) load-test suite lives in [`perf/`](perf/). It drives the
 common read workload (health, collection lists, `taxonomy/tree`, `taxonomy/paths`, and full
 Zone→Department→Category→SubCategory drill-downs) plus a smaller share of write traffic
-(create → update → soft-delete lifecycle).
+(create → update → soft-delete lifecycle). `/api/v1/*` is protected by Basic Auth, so the
+suite authenticates with the demo credentials (`DEMO_USER`/`DEMO_PASSWORD`, default
+`admin`/`password`).
 
 Run it (API must be up and seeded):
 
@@ -116,51 +88,54 @@ Results (CSV + summary) are written to `perf/results/`.
 
 ### Benchmark
 
-Recorded on the local dev environment (single `uvicorn` worker, PostgreSQL 16 on the same
-4‑vCPU host), read‑heavy mixed workload, **50 concurrent users, 30s, spawn rate 10/s**.
+Recorded on the local dev environment (single `uvicorn` worker with structlog + Prometheus
+middleware, PostgreSQL 16 on the same 4‑vCPU host), read‑heavy mixed workload with Basic Auth,
+**50 concurrent users, 30s, spawn rate 10/s**.
 
 | Metric | Value |
 | --- | --- |
-| Total requests | 6,783 |
+| Total requests | 6,840 |
 | Failures | 0 (0.00%) |
-| Throughput | ~227 req/s |
-| Latency p50 | 17 ms |
-| Latency p90 | 63 ms |
-| Latency p95 | 97 ms |
-| Latency p99 | 220 ms |
-| Max | 384 ms |
+| Throughput | ~229 req/s |
+| Latency p50 | 19 ms |
+| Latency p90 | 57 ms |
+| Latency p95 | 71 ms |
+| Latency p99 | 100 ms |
+| Max | 154 ms |
 
 Per-endpoint (median / p95 / p99, ms):
 
 | Endpoint | req/s | p50 | p95 | p99 |
 | --- | ---: | ---: | ---: | ---: |
-| `GET /zones` | 57.0 | 15 | 61 | 84 |
-| `GET /zones/:id/departments` | 32.0 | 15 | 56 | 78 |
-| `GET /departments/:id/categories` | 24.5 | 11 | 46 | 71 |
-| `GET /categories/:id/subcategories` | 24.5 | 11 | 55 | 77 |
-| `GET /taxonomy/paths` | 17.2 | 20 | 64 | 97 |
-| `GET /taxonomy/tree` | 16.9 | 130 | 270 | 310 |
-| `GET /health` | 9.0 | 3 | 12 | 25 |
-| `GET /health/ready` | 7.4 | 16 | 59 | 71 |
-| `POST /zones` | 12.8 | 31 | 83 | 130 |
-| `PUT /zones/:id` | 12.8 | 31 | 82 | 120 |
-| `DELETE /zones/:id` | 12.8 | 21 | 55 | 86 |
+| `GET /zones` | 59.0 | 18 | 66 | 100 |
+| `GET /zones/:id/departments` | 33.0 | 20 | 61 | 88 |
+| `GET /departments/:id/categories` | 24.2 | 14 | 56 | 81 |
+| `GET /categories/:id/subcategories` | 24.1 | 14 | 54 | 74 |
+| `GET /taxonomy/tree` | 17.0 | 30 | 96 | 110 |
+| `GET /taxonomy/paths` | 16.1 | 24 | 80 | 110 |
+| `GET /health` | 8.5 | 6 | 25 | 43 |
+| `GET /health/ready` | 8.7 | 15 | 56 | 86 |
+| `POST /zones` | 12.7 | 34 | 100 | 140 |
+| `PUT /zones/:id` | 12.7 | 34 | 87 | 130 |
+| `DELETE /zones/:id` | 12.7 | 18 | 60 | 72 |
 
-**Observations:** all endpoints held **0% error rate** at 50 concurrent users. Simple reads and
-CRUD writes stayed well under ~130 ms at p99. The slowest endpoint is `GET /taxonomy/tree`
-(p50 ~130 ms) because it walks the hierarchy with per-node queries (N+1); it is the primary
-candidate for optimization (eager joins or a single recursive query / the `sku_classification_paths`
-view) if the tree becomes a hot path.
+**Observations:** all endpoints held a **0% error rate** at 50 concurrent users. Reads stay at
+or under ~110 ms at p99; the heaviest operations are the writes (`POST`/`PUT`, p99 ~130–140 ms)
+because each performs a uniqueness check plus commit. If write throughput becomes a hot path,
+batch inserts or relaxing per-request logging would be the first optimizations.
 
 ## Cloud Agent environment
 
-`.cursor/environment.json` provisions this repo for Cursor Cloud Agents without Docker:
-`scripts/cloud/install.sh` installs PostgreSQL 16 + Python/Node dependencies, and
-`scripts/cloud/start.sh` starts PostgreSQL, applies migrations, and seeds. The `api`
-and `web` dev servers run as named terminals.
+`.cursor/environment.json` provisions this repo for Cursor Cloud Agents **without Docker**:
 
-## Scope
+- `scripts/cloud/install.sh` (install phase): installs PostgreSQL 16 + Python/Node deps and
+  the API's `requirements.txt`, and installs web dependencies.
+- `scripts/cloud/start.sh` (start phase): starts PostgreSQL, ensures the role/database,
+  applies Alembic migrations, and seeds — idempotent across restarts.
+- Named terminals run the `api` (`uvicorn`) and `web` (`vite`) dev servers.
 
-This repo currently implements **Part A / Exercise 1 (BUILD)**. Logging (structlog),
-authentication (Basic Auth + login), and monitoring (Prometheus/Grafana) are the
-**RUN** exercise and are documented as future work in the plan.
+## Assessment docs
+
+- Plan: `Plan version 1/Retail-Taxonomy-Assessment-Aligned-Proposal.md`
+- TDD milestones: `Plan version 1/Implementation-Plan-TDD-Milestones.md`
+- Notes: `docs/assessment-notes.md`

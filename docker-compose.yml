@@ -7,48 +7,82 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-taxonomy}
     ports:
       - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-taxonomy}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-taxonomy} -d ${POSTGRES_DB:-taxonomy}"]
       interval: 5s
       timeout: 5s
       retries: 10
+    volumes:
+      - pgdata:/var/lib/postgresql/data
 
   api:
     build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+      context: ./apps/api
+      dockerfile: Dockerfile
+    image: retail-taxonomy-api:local
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://taxonomy:taxonomy@postgres:5432/taxonomy}
+      # Always use Compose DNS name inside the network (ignore host .env DATABASE_URL).
+      DATABASE_URL: postgresql+psycopg://taxonomy:taxonomy@postgres:5432/taxonomy
+      TAXONOMY_SEED_CSV: /data/seed/taxonomy.csv
+      DEMO_USER: ${DEMO_USER:-admin}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-password}
     ports:
       - "8000:8000"
     volumes:
       - ./apps/api:/app
       - ./scripts:/app/scripts
-      - ./data:/app/data
+      - ./data:/data
     depends_on:
       postgres:
         condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1"]
-      interval: 10s
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   web:
     build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-    environment:
-      VITE_API_PROXY_TARGET: http://api:8000
+      context: ./apps/web
+      dockerfile: Dockerfile
+    image: retail-taxonomy-web:local
     ports:
       - "5173:5173"
     volumes:
       - ./apps/web:/app
       - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - VITE_API_PROXY_TARGET=http://api:8000
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docs/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      api:
+        condition: service_healthy
+
+  grafana:
+    image: grafana/grafana:11.3.1
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./docs/grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro
+      - ./docs/grafana/dashboard.yml:/etc/grafana/provisioning/dashboards/dashboard.yml:ro
+      - ./docs/grafana/dashboard.json:/etc/grafana/provisioning/dashboards/dashboard.json:ro
+    depends_on:
+      - prometheus
 
 volumes:
   pgdata:
