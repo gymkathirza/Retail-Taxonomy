@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.logging_setup import log_crud
 from app.models import Zone
 from app.schemas import ItemList, ZoneCreate, ZoneRead, ZoneUpdate
 from app.services.crud_helpers import check_sibling_unique, commit_or_conflict, get_or_404
@@ -27,7 +28,11 @@ def list_zones(
 
 
 @router.post("", response_model=ZoneRead, status_code=201)
-def create_zone(payload: ZoneCreate, db: Session = Depends(get_db)) -> Zone:
+def create_zone(
+    payload: ZoneCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> Zone:
     name = check_sibling_unique(
         db,
         Zone,
@@ -41,6 +46,13 @@ def create_zone(payload: ZoneCreate, db: Session = Depends(get_db)) -> Zone:
     db.add(zone)
     commit_or_conflict(db, f"A zone named '{name}' already exists.")
     db.refresh(zone)
+    log_crud(
+        event="zone_create",
+        resource="zone",
+        resource_id=str(zone.id),
+        outcome="success",
+        request=request,
+    )
     return zone
 
 
@@ -50,7 +62,12 @@ def get_zone(zone_id: uuid.UUID, db: Session = Depends(get_db)) -> Zone:
 
 
 @router.put("/{zone_id}", response_model=ZoneRead)
-def update_zone(zone_id: uuid.UUID, payload: ZoneUpdate, db: Session = Depends(get_db)) -> Zone:
+def update_zone(
+    zone_id: uuid.UUID,
+    payload: ZoneUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> Zone:
     zone = get_or_404(db, Zone, zone_id, "Zone")
     name = check_sibling_unique(
         db,
@@ -66,25 +83,54 @@ def update_zone(zone_id: uuid.UUID, payload: ZoneUpdate, db: Session = Depends(g
     db.add(zone)
     commit_or_conflict(db, f"A zone named '{name}' already exists.")
     db.refresh(zone)
+    log_crud(
+        event="zone_update",
+        resource="zone",
+        resource_id=str(zone.id),
+        outcome="success",
+        request=request,
+    )
     return zone
 
 
 @router.delete("/{zone_id}", status_code=204, response_class=Response)
-def delete_zone(zone_id: uuid.UUID, db: Session = Depends(get_db)) -> Response:
+def delete_zone(
+    zone_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> Response:
     try:
         soft_delete_zone(db, zone_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Zone not found") from exc
     db.commit()
+    log_crud(
+        event="zone_retire",
+        resource="zone",
+        resource_id=str(zone_id),
+        outcome="success",
+        request=request,
+    )
     return Response(status_code=204)
 
 
 @router.post("/{zone_id}/restore", response_model=ZoneRead)
-def restore_zone_endpoint(zone_id: uuid.UUID, db: Session = Depends(get_db)) -> Zone:
+def restore_zone_endpoint(
+    zone_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> Zone:
     try:
         zone = restore_zone(db, zone_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Zone not found") from exc
     db.commit()
     db.refresh(zone)
+    log_crud(
+        event="zone_restore",
+        resource="zone",
+        resource_id=str(zone.id),
+        outcome="success",
+        request=request,
+    )
     return zone
