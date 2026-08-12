@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+node_modules/
+apps/web/dist/
+apps/web/tsconfig.tsbuildinfo
+.pytest_cache/
+*.egg-info/

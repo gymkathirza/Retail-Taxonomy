@@ -1,0 +1,62 @@
+Location,Department,Category,SubCategory
+Perimeter,Produce,Fresh Fruit,Apples
+Perimeter,Produce,Fresh Fruit,Bananas
+Perimeter,Produce,Fresh Fruit,Berries
+Perimeter,Produce,Fresh Vegetables,Leafy Greens
+Perimeter,Produce,Fresh Vegetables,Root Vegetables
+Perimeter,Produce,Fresh Vegetables,Peppers
+Perimeter,Produce,Packaged Produce,Salad Kits
+Perimeter,Produce,Packaged Produce,Cut Fruit
+Perimeter,Bakery,Bread,Sandwich Bread
+Perimeter,Bakery,Bread,Artisan Loaves
+Perimeter,Bakery,Breakfast Bakery,Refrigerated English Muffins and Biscuits
+Perimeter,Bakery,Breakfast Bakery,Refrigerated Sweet Breakfast Baked Goods
+Perimeter,Bakery,Breakfast Bakery,Bagels
+Perimeter,Deli,Sliced Meats,Ham
+Perimeter,Deli,Sliced Meats,Turkey
+Perimeter,Deli,Cheese,Sliced Cheese
+Perimeter,Deli,Cheese,Specialty Cheese
+Perimeter,Deli,Prepared Foods,Sandwiches
+Perimeter,Deli,Prepared Foods,Salads
+Perimeter,Meat & Seafood,Fresh Meat,Beef
+Perimeter,Meat & Seafood,Fresh Meat,Pork
+Perimeter,Meat & Seafood,Fresh Meat,Chicken
+Perimeter,Meat & Seafood,Seafood,Fish
+Perimeter,Meat & Seafood,Seafood,Shellfish
+Perimeter,Dairy,Milk,Whole Milk
+Perimeter,Dairy,Milk,Skim Milk
+Perimeter,Dairy,Milk,Plant Based Milk
+Perimeter,Dairy,Yogurt,Greek Yogurt
+Perimeter,Dairy,Yogurt,Regular Yogurt
+Perimeter,Dairy,Eggs,Large Eggs
+Perimeter,Dairy,Eggs,Organic Eggs
+Center,Grocery,Canned Goods,Canned Vegetables
+Center,Grocery,Canned Goods,Canned Soup
+Center,Grocery,Canned Goods,Canned Beans
+Center,Grocery,Pasta & Rice,Dry Pasta
+Center,Grocery,Pasta & Rice,White Rice
+Center,Grocery,Pasta & Rice,Brown Rice
+Center,Grocery,Snacks,Chips
+Center,Grocery,Snacks,Crackers
+Center,Grocery,Snacks,Cookies
+Center,Grocery,Baking,Flour
+Center,Grocery,Baking,Sugar
+Center,Grocery,Baking,Baking Mixes
+Center,Grocery,Condiments,Ketchup
+Center,Grocery,Condiments,Mustard
+Center,Frozen,Frozen Meals,Frozen Pizza
+Center,Frozen,Frozen Meals,Frozen Dinners
+Center,Frozen,Frozen Vegetables,Frozen Peas
+Center,Frozen,Frozen Vegetables,Frozen Corn
+Center,Frozen,Ice Cream,Tubs
+Center,Frozen,Ice Cream,Novelties
+Center,Beverages,Water,Still Water
+Center,Beverages,Water,Sparkling Water
+Center,Beverages,Soft Drinks,Cola
+Center,Beverages,Soft Drinks,Lemon Lime
+Center,Beverages,Soft Drinks,Root Beer
+Center,Beverages,Coffee & Tea,Ground Coffee
+Center,Beverages,Coffee & Tea,Tea Bags
+Center,Beverages,Coffee & Tea,Coffee Pods
+Center,Beverages,Juice,Orange Juice
+Center,Beverages,Juice,Apple Juice

@@ -1,0 +1,21 @@
+{
+  "name": "Retail Taxonomy (FastAPI + React + Postgres)",
+  "user": "ubuntu",
+  "install": "bash scripts/cloud/install.sh",
+  "start": "bash scripts/cloud/start.sh",
+  "terminals": [
+    {
+      "name": "api",
+      "command": "cd /workspace && source .venv/bin/activate && cd apps/api && DATABASE_URL=postgresql+psycopg://taxonomy:taxonomy@localhost:5432/taxonomy uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    },
+    {
+      "name": "web",
+      "command": "cd /workspace/apps/web && npm run dev"
+    }
+  ],
+  "ports": [
+    { "name": "web", "port": 5173 },
+    { "name": "api", "port": 8000 },
+    { "name": "postgres", "port": 5432 }
+  ]
+}
