@@ -24,20 +24,29 @@ Ports: UI `5173`, API `8000`, Postgres `5432`.
 
 ## Quick start (Docker)
 
+Prerequisites: Docker Engine + the Docker Compose plugin (`docker compose version`) and `make`.
+
 ```bash
-git clone <repo-url>
+git clone https://github.com/gymkathirza/Retail-Taxonomy.git
 cd Retail-Taxonomy
 cp .env.example .env
 make up            # build + start postgres, api, web
 make migrate       # apply Alembic migrations
 make seed          # load data/seed/taxonomy.csv (2 / 8 / 25 / 61)
 make test          # backend unit + integration tests
-open http://localhost:5173
-curl -sS http://localhost:8000/health
-curl -sS http://localhost:8000/health/ready
+# Open the UI and check the API:
+#   UI:  http://localhost:5173
+#   API: http://localhost:8000/docs   (health: /health, /health/ready)
 ```
 
+Stop everything with `make down`.
+
 ## Local development (no Docker)
+
+```bash
+git clone https://github.com/gymkathirza/Retail-Taxonomy.git
+cd Retail-Taxonomy
+```
 
 1. Install Python 3.12, Node 20, and PostgreSQL 16.
 2. Create the role/database from `.env.example`:
