@@ -1,4 +1,4 @@
-.PHONY: up down seed logs test test-unit test-component test-integration test-acceptance smoke
+.PHONY: up down seed logs test test-unit test-component test-integration test-acceptance smoke perf
 
 export DATABASE_URL ?= postgresql+psycopg://taxonomy:taxonomy@127.0.0.1:5432/taxonomy
 API_VENV := apps/api/.venv/bin
@@ -39,3 +39,7 @@ test-acceptance:
 
 smoke:
 	@bash scripts/smoke_health.sh
+
+perf: ## Run the Locust load test headless (override HOST/USERS/RATE/TIME)
+	pip install -q -r perf/requirements.txt
+	bash perf/run_perf.sh

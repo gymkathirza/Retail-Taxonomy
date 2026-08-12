@@ -38,3 +38,9 @@ credentials.json
 
 # Docker volumes (if ever bind-mounted locally)
 pgdata/
+
+# Load-test output
+perf/results/
+
+# TS build info
+apps/web/tsconfig.tsbuildinfo
