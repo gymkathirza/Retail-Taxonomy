@@ -64,7 +64,8 @@ services:
       # OAuth2/OIDC — SPA SSO + social buttons (via Keycloak) on by default.
       - VITE_OIDC_AUTHORITY=${VITE_OIDC_AUTHORITY:-http://localhost:8080/realms/retail}
       - VITE_OIDC_CLIENT_ID=${VITE_OIDC_CLIENT_ID:-retail-taxonomy-spa}
-      - VITE_OIDC_SCOPE=${VITE_OIDC_SCOPE:-openid profile email taxonomy.read taxonomy.write}
+      # Request only `openid` — custom taxonomy.* scopes are attached by Keycloak defaults.
+      - VITE_OIDC_SCOPE=${VITE_OIDC_SCOPE:-openid}
       - VITE_OIDC_REDIRECT_URI=${VITE_OIDC_REDIRECT_URI:-http://localhost:5173/callback}
     depends_on:
       api:
@@ -104,12 +105,25 @@ services:
   # Realm "retail" is imported from deploy/keycloak/realm-retail.json.
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
-    command: ["start-dev", "--import-realm", "--http-port=8080", "--hostname-strict=false"]
+    command:
+      [
+        "start-dev",
+        "--import-realm",
+        "--http-port=8080",
+        "--hostname=localhost",
+        "--hostname-port=8080",
+        "--hostname-strict=false",
+        "--http-enabled=true",
+      ]
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
       KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: "8080"
       KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_SPI_COOKIE_DEFAULT_SECURE: "false"
     ports:
       - "8080:8080"
     volumes:

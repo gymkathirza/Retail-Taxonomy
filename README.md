@@ -48,8 +48,8 @@ vars (see `.env.example`). The login page offers:
 |---|---|---|
 | **Basic Auth** | Yes | `admin` / `password` |
 | **Keycloak (SSO)** | Yes | Local realm user `sso.user` / `password` |
-| **Google** | After OAuth app setup | Routed via Keycloak identity provider `google` |
-| **GitHub** | After OAuth app setup | Routed via Keycloak identity provider `github` |
+| **Google** | Demo notice until configured | Button shows “Auth required — demo only”; enable via Keycloak IdP below |
+| **GitHub** | Demo notice until configured | Same as Google — no fake login bypass |
 
 Bearer tokens are verified against Keycloak JWKS (issuer, audience, expiry, RS256).
 Optional `OIDC_REQUIRED_SCOPE` gates writes (`POST/PUT/DELETE`) for OIDC principals;
@@ -66,9 +66,12 @@ open http://localhost:5173
 
 ### Enable Google / GitHub (OAuth app setup)
 
-Social buttons are always shown when OIDC is configured. They only complete login after
-you register OAuth apps and paste client ID/secret into Keycloak (realm stubs ship with
-`REPLACE_ME_*` placeholders).
+Until credentials are configured, **Sign in with Google / GitHub** show an in-app demo
+notice (“Auth required — this is demo only”) and do **not** log you in. After setup,
+enable the IdPs in Keycloak and switch the SPA buttons to real `kc_idp_hint` redirects
+(or use Keycloak’s own IdP buttons on the SSO login page).
+
+Realm stubs ship with IdPs **disabled** and `REPLACE_ME_*` placeholders.
 
 #### 1. Google Cloud OAuth client
 

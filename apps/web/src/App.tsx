@@ -16,11 +16,11 @@ export default function App() {
       if (window.location.pathname === "/callback") {
         try {
           await completeSsoLogin();
+          if (active) setAuthed(true);
         } catch {
           /* fall through to login screen */
         }
         window.history.replaceState({}, "", "/");
-        if (active) setAuthed(true);
       } else {
         const user = await initOidc();
         if (active && user) setAuthed(true);

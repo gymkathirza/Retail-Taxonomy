@@ -3,6 +3,7 @@
   "enabled": true,
   "sslRequired": "none",
   "registrationAllowed": false,
+  "loginTheme": "keycloak",
   "clientScopes": [
     {
       "name": "taxonomy-audience",
@@ -42,11 +43,17 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
-      "redirectUris": ["http://localhost:5173/*"],
-      "webOrigins": ["http://localhost:5173", "+"],
-      "attributes": { "pkce.code.challenge.method": "S256" },
-      "defaultClientScopes": ["openid", "profile", "email", "taxonomy-audience", "taxonomy.read"],
-      "optionalClientScopes": ["taxonomy.write"]
+      "redirectUris": [
+        "http://localhost:5173/*",
+        "http://127.0.0.1:5173/*"
+      ],
+      "webOrigins": ["http://localhost:5173", "http://127.0.0.1:5173", "+"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*##http://127.0.0.1:5173/*"
+      },
+      "defaultClientScopes": ["taxonomy-audience", "taxonomy.read", "taxonomy.write"],
+      "optionalClientScopes": []
     },
     {
       "clientId": "retail-taxonomy-m2m",
@@ -75,7 +82,7 @@
       "alias": "google",
       "displayName": "Google",
       "providerId": "google",
-      "enabled": true,
+      "enabled": false,
       "trustEmail": true,
       "storeToken": false,
       "linkOnly": false,
@@ -91,7 +98,7 @@
       "alias": "github",
       "displayName": "GitHub",
       "providerId": "github",
-      "enabled": true,
+      "enabled": false,
       "trustEmail": true,
       "storeToken": false,
       "linkOnly": false,

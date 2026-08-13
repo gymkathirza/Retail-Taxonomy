@@ -9,7 +9,7 @@ import { setBearerToken, clearBearerToken } from "../api/client";
 const env = import.meta.env as unknown as Record<string, string | undefined>;
 const authority = env.VITE_OIDC_AUTHORITY;
 const clientId = env.VITE_OIDC_CLIENT_ID;
-const scope = env.VITE_OIDC_SCOPE || "openid profile email";
+const scope = env.VITE_OIDC_SCOPE || "openid";
 const redirectUri =
   env.VITE_OIDC_REDIRECT_URI || `${window.location.origin}/callback`;
 

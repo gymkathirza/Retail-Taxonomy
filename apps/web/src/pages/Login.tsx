@@ -1,20 +1,25 @@
 import { FormEvent, useState } from "react";
 import { setStoredAuth } from "../api/client";
-import { isOidcConfigured, loginWithSso, SocialIdp } from "../auth/oidc";
+import { isOidcConfigured, loginWithSso } from "../auth/oidc";
 
 type Props = {
   onLoggedIn: () => void;
 };
 
+const SOCIAL_DEMO_MSG =
+  "Auth required — this is demo only. Google/GitHub OAuth apps are not configured. Use Sign In (Basic) or Keycloak SSO (sso.user / password). See README → Authentication to enable social login.";
+
 export default function Login({ onLoggedIn }: Props) {
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("password");
   const [error, setError] = useState<string | null>(null);
+  const [socialNote, setSocialNote] = useState<string | null>(null);
   const ssoEnabled = isOidcConfigured();
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setSocialNote(null);
     setStoredAuth(username, password);
     try {
       const token = btoa(`${username}:${password}`);
@@ -30,9 +35,9 @@ export default function Login({ onLoggedIn }: Props) {
     }
   }
 
-  function onSocial(idp: SocialIdp) {
+  function onSocialDemo() {
     setError(null);
-    void loginWithSso(idp);
+    setSocialNote(SOCIAL_DEMO_MSG);
   }
 
   return (
@@ -41,7 +46,7 @@ export default function Login({ onLoggedIn }: Props) {
         <div className="login-head">
           <div className="brand-logo">RT</div>
           <h1>Retail Taxonomy Console</h1>
-          <p>Choose Basic Auth or OAuth2 / SSO.</p>
+          <p>Sign in with demo credentials, or use SSO.</p>
         </div>
         <form className="login-body" onSubmit={onSubmit}>
           <label className="field">
@@ -69,7 +74,7 @@ export default function Login({ onLoggedIn }: Props) {
             </p>
           ) : null}
           <button type="submit" className="btn btn-primary">
-            Sign in with Basic Auth
+            Sign In
           </button>
           {ssoEnabled ? (
             <>
@@ -78,31 +83,39 @@ export default function Login({ onLoggedIn }: Props) {
                 <button
                   type="button"
                   className="btn btn-outline login-sso"
-                  onClick={() => void loginWithSso()}
+                  onClick={() => {
+                    setSocialNote(null);
+                    void loginWithSso();
+                  }}
                 >
                   Sign in with Keycloak (SSO)
                 </button>
                 <button
                   type="button"
                   className="btn btn-outline login-sso"
-                  onClick={() => onSocial("google")}
+                  onClick={onSocialDemo}
                 >
                   Sign in with Google
                 </button>
                 <button
                   type="button"
                   className="btn btn-outline login-sso"
-                  onClick={() => onSocial("github")}
+                  onClick={onSocialDemo}
                 >
                   Sign in with GitHub
                 </button>
               </div>
-              <p className="login-oauth-note">
-                Google and GitHub need OAuth app client ID/secret in Keycloak
-                first. Keycloak local SSO works out of the box (
-                <code>sso.user</code> / <code>password</code>). See README →
-                Authentication for setup steps.
-              </p>
+              {socialNote ? (
+                <p className="login-oauth-demo" role="status">
+                  {socialNote}
+                </p>
+              ) : (
+                <p className="login-oauth-note">
+                  Keycloak SSO works locally (<code>sso.user</code> /{" "}
+                  <code>password</code>). Google/GitHub show a demo notice until
+                  OAuth apps are configured (README → Authentication).
+                </p>
+              )}
             </>
           ) : null}
         </form>
