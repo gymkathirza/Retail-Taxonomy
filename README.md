@@ -122,6 +122,25 @@ Load-test the OIDC path: `AUTH_MODE=bearer BEARER_TOKEN=$TOKEN bash perf/run_per
 
 To disable OIDC (Basic-only), clear `OIDC_ISSUER` / `VITE_OIDC_AUTHORITY` in `.env` and
 omit or stop the `keycloak` service.
+## Taxonomy export (Excel / Word)
+
+From the Retail Taxonomy Console top bar (after sign-in):
+
+- **Export Excel** → `retail-taxonomy.xlsx` (tabular paths; best for spreadsheet review)
+- **Export Word** → `retail-taxonomy.docx` (same paths in a Word table)
+
+API equivalents (Basic or Bearer auth):
+
+```bash
+curl -u admin:password -o retail-taxonomy.xlsx \
+  http://localhost:8000/api/v1/taxonomy/export.xlsx
+curl -u admin:password -o retail-taxonomy.docx \
+  http://localhost:8000/api/v1/taxonomy/export.docx
+```
+
+Add `?include_inactive=true` to include retired nodes. (Keycloak’s own admin realm export
+remains JSON — that is IdP configuration, not taxonomy data.)
+
 ## Monitoring & observability
 
 The API exposes Prometheus metrics at `GET /metrics` (unauthenticated). A `MetricsMiddleware`

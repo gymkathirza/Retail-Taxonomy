@@ -148,4 +148,29 @@ export const api = {
     request<void>(`/api/v1/subcategories/${id}`, { method: "DELETE" }),
   restoreSubcategory: (id: string) =>
     request<TaxonomyNode>(`/api/v1/subcategories/${id}/restore`, { method: "POST" }),
+
+  /** Download taxonomy as Excel or Word (binary; not JSON). */
+  exportTaxonomy: async (format: "xlsx" | "docx", includeInactive = false) => {
+    const auth = getStoredAuth();
+    const headers: Record<string, string> = {};
+    if (bearerToken) {
+      headers.Authorization = `Bearer ${bearerToken}`;
+    } else if (auth) {
+      headers.Authorization = `Basic ${auth}`;
+    }
+    const q = includeInactive ? "?include_inactive=true" : "";
+    const res = await fetch(`/api/v1/taxonomy/export.${format}${q}`, { headers });
+    if (!res.ok) {
+      throw new Error(`Export failed (${res.status})`);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `retail-taxonomy.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
 };

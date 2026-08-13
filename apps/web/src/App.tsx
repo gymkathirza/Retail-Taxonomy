@@ -302,6 +302,32 @@ function TaxonomyApp({ onLogout }: { onLogout: () => void }) {
             />
             Show inactive
           </label>
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={async () => {
+              try {
+                await api.exportTaxonomy("xlsx", includeInactive);
+              } catch (e) {
+                setError((e as Error).message);
+              }
+            }}
+          >
+            Export Excel
+          </button>
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={async () => {
+              try {
+                await api.exportTaxonomy("docx", includeInactive);
+              } catch (e) {
+                setError((e as Error).message);
+              }
+            }}
+          >
+            Export Word
+          </button>
           <button type="button" className="btn btn-outline" onClick={onLogout}>
             Sign out
           </button>

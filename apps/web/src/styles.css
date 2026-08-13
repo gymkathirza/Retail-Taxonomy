@@ -56,7 +56,13 @@ body { margin: 0; }
 }
 .brand h1 { margin: 0; font-family: var(--font-serif); font-size: 19px; font-weight: 600; letter-spacing: 0.2px; color: #fff; }
 .brand p { margin: 1px 0 0; font-size: 11.5px; color: rgba(255, 255, 255, 0.82); text-transform: uppercase; letter-spacing: 0.18em; }
-.topbar-actions { display: flex; align-items: center; gap: 16px; }
+.topbar-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.topbar-actions .btn-outline {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+}
+.topbar-actions .btn-outline:hover { background: rgba(255, 255, 255, 0.22); }
 
 /* Toolbar */
 .toolbar { display: flex; align-items: center; gap: 16px; padding: 18px 30px 6px; }
