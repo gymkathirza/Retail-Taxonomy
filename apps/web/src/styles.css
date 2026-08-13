@@ -63,6 +63,17 @@ body { margin: 0; }
   border: 1px solid rgba(255, 255, 255, 0.45);
 }
 .topbar-actions .btn-outline:hover { background: rgba(255, 255, 255, 0.22); }
+.app-version {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  padding: 4px 10px;
+  cursor: help;
+  user-select: none;
+}
 
 /* Toolbar */
 .toolbar { display: flex; align-items: center; gap: 16px; padding: 18px 30px 6px; }

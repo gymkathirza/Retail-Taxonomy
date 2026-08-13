@@ -294,6 +294,9 @@ function TaxonomyApp({ onLogout }: { onLogout: () => void }) {
           </div>
         </div>
         <div className="topbar-actions">
+          <span className="app-version" title="App Version" aria-label="App Version">
+            Version 0.1.0
+          </span>
           <label className="toggle">
             <input
               type="checkbox"
