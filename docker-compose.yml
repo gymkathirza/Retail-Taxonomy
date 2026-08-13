@@ -103,22 +103,15 @@ services:
 
   # Local IdP (started with the default stack). Admin console: admin / admin.
   # Realm "retail" is imported from deploy/keycloak/realm-retail.json.
+  # entrypoint.sh forces sslRequired=NONE so HTTP works via Docker/proxy IPs.
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
-    command:
-      [
-        "start-dev",
-        "--import-realm",
-        "--http-port=8080",
-        "--hostname=localhost",
-        "--hostname-strict=false",
-        "--http-enabled=true",
-      ]
+    entrypoint: ["/bin/bash", "/opt/keycloak/data/import/entrypoint.sh"]
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
       KC_HTTP_ENABLED: "true"
-      KC_HOSTNAME: localhost
+      KC_HOSTNAME: "http://localhost:8080"
       KC_HOSTNAME_STRICT: "false"
       KC_HOSTNAME_STRICT_HTTPS: "false"
       KC_SPI_COOKIE_DEFAULT_SECURE: "false"

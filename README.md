@@ -62,6 +62,7 @@ make up    # includes Keycloak; wait ~30–60s for first boot
 open http://localhost:5173
 # → Sign in with Keycloak (SSO) → sso.user / password
 # Keycloak admin console: http://localhost:8080 (admin / admin)
+# Master realm SSL is relaxed for local HTTP (see deploy/keycloak/entrypoint.sh).
 ```
 
 ### Enable Google / GitHub (OAuth app setup)
